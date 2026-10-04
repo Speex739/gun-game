@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Gun Game — Arena v23.0</title>
+<!-- ============================================================
+     YANDEX GAMES SDK v2 — обязательная встройка (п. 1.1 требований платформы)
+     ============================================================ -->
+<script src="https://yandex.ru/games/sdk/v2"></script>
 <style>
 html,body{margin:0!important;padding:0!important;height:100%!important;width:100%!important;overflow:hidden!important;background:#000!important}
 canvas#gameCanvas{position:fixed!important;top:0;left:0;width:100vw!important;height:100vh!important;display:block!important;z-index:1!important;pointer-events:auto!important}
@@ -478,6 +482,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:Arial
     <button class="lobbyIconBtn" id="lobbySettingsBtn">⚙</button>
     <button class="lobbyIconBtn" id="lobbyEditBtn">🎛</button>
     <button class="lobbyIconBtn" id="lobbyKeysBtn">⌨</button>
+    <button class="lobbyIconBtn" id="lobbyReviewBtn" title="Оценить игру">⭐</button>
   </div>
   <div class="lobbyHeader">
     <div class="lobbyLogo">GUN GAME</div>
@@ -514,6 +519,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:Arial
       <div class="map-btn" data-map="roof">🏢 Крыша<div class="mDesc">Вентиляция, антенны</div></div>
     </div>
     <button id="playBtn">▶ ИГРАТЬ</button>
+    <button id="rewardCoinsBtn" class="pauseBtn boost" style="max-width:340px;margin-top:14px;width:100%">🎁 СМОТРЕТЬ РЕКЛАМУ → +500 МОНЕТ</button>
+    <div style="color:#a89070;font-size:10px;font-family:Consolas,monospace;margin-top:6px;text-align:center;letter-spacing:1px">Доступно раз в 5 минут</div>
   </div>
   <div class="lobbyTabContent" id="tab-duel">
     <div class="sectionTitle"><span>⚔️</span>Дуэль 1 на 1<span>⚔️</span></div>
@@ -567,19 +574,406 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:Arial
 </div>
 
 <script>
-window.safeLS={get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}},set:function(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
-window.showFatal=function(msg){try{var el=document.getElementById('fatalError');if(el){el.style.display='block';el.textContent+='\n'+msg;}}catch(e){}};
-window.addEventListener('error',function(e){var m=(e.error&&(e.error.stack||e.error.message))||e.message||'?';if(m.indexOf('Pointer lock')>=0)return;window.showFatal('[ERROR] '+m);});
-(function(){
-  function simpleHash(str){let h=5381;for(let i=0;i<str.length;i++)h=((h<<5)+h)^str.charCodeAt(i);return (h>>>0).toString(36);}
-  function getUserKey(nick){return 'gg_user_'+nick.toLowerCase();}
-  function errMsg(m){var el=document.getElementById('loginMsg');if(el)el.textContent=m;}
-  function makeDefaultProfile(nick){return {xp:0,level:1,coins:200,unlockedWeapons:[0,5],medkits:0,armor:0,kills:0,knifeKills:0,grenadeKills:0,maxWave:0,activeWeapon:0,ammoReserve:{},weaponMags:{},achievements:[],nick:nick,totalShots:0,totalHits:0,headshots:0,deaths:0,lastCaseDaily:null,promoUsed:[],prestige:0,totalCoinsEarned:0,duelWins:0,duelLosses:0,weaponSkins:{},equippedSkin:{}};}
-  function proceed(nick){try{window.safeLS.set('gg_session',nick);window.safeLS.set('gg_last_user',nick);}catch(e){}window.__ggLoggedInNick=nick;var ls=document.getElementById('loginScreen');if(ls)ls.classList.add('hidden');var lk=document.getElementById('lock');if(lk){lk.classList.remove('hidden');lk.style.display='flex';}try{window.dispatchEvent(new CustomEvent('gg:login',{detail:{nick:nick}}));}catch(e){}}
-  function doLogin(){var nickEl=document.getElementById('loginNick'),passEl=document.getElementById('loginPass');if(!nickEl||!passEl)return;var nick=nickEl.value.trim(),pass=passEl.value;if(!nick||!pass){errMsg('Заполни оба поля');return;}var key=getUserKey(nick),hash=simpleHash(pass),stored=window.safeLS.get(key,'');if(stored){try{var u=JSON.parse(stored);if(u.hash!==hash){errMsg('Неверный пароль');return;}}catch(e){errMsg('Ошибка данных');return;}}else window.safeLS.set(key,JSON.stringify({hash:hash,created:Date.now()}));var prof=null;try{var s=window.safeLS.get('gg_profile_v16','');if(s)prof=JSON.parse(s);}catch(e){}if(!prof)prof=makeDefaultProfile(nick);prof.nick=nick;window.safeLS.set('gg_profile_v16',JSON.stringify(prof));proceed(nick);}
-  function doOffline(){var nick=window.safeLS.get('gg_last_user','')||('Гость'+Math.floor(Math.random()*9999));var prof=null;try{var s=window.safeLS.get('gg_profile_v16','');if(s)prof=JSON.parse(s);}catch(e){}if(!prof)prof=makeDefaultProfile(nick);prof.nick=nick;window.safeLS.set('gg_profile_v16',JSON.stringify(prof));proceed(nick);}
-  function attach(){var b=document.getElementById('loginBtn'),o=document.getElementById('loginOffline');if(b&&!b.__ggHandled){b.__ggHandled=true;b.addEventListener('click',function(e){e.preventDefault();doLogin();});}if(o&&!o.__ggHandled){o.__ggHandled=true;o.addEventListener('click',function(e){e.preventDefault();doOffline();});}var p=document.getElementById('loginPass'),n=document.getElementById('loginNick');if(p&&!p.__ggHandled){p.__ggHandled=true;p.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});}if(n&&!n.__ggHandled){n.__ggHandled=true;n.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});}try{var last=window.safeLS.get('gg_last_user','');if(last&&n&&!n.value)n.value=last;}catch(e){}try{var session=window.safeLS.get('gg_session','');if(session){var ls=document.getElementById('loginScreen');if(ls)ls.classList.add('hidden');var lk=document.getElementById('lock');if(lk){lk.classList.remove('hidden');lk.style.display='flex';}window.__ggLoggedInNick=session;setTimeout(function(){try{window.dispatchEvent(new CustomEvent('gg:login',{detail:{nick:session}}));}catch(e){}},0);}}catch(e){}}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attach);else attach();
+/* =========================================================================
+   ЯДРО: safeLS с автосинхронизацией в облако Yandex + обработчик ошибок
+   ========================================================================= */
+window.safeLS = {
+  get: function(k, d) {
+    try {
+      var v = localStorage.getItem(k);
+      return v === null ? d : v;
+    } catch (e) {
+      return d;
+    }
+  },
+  set: function(k, v) {
+    try { localStorage.setItem(k, v); } catch (e) {}
+    if (window.yandexScheduleCloudSync) {
+      try { window.yandexScheduleCloudSync(); } catch (e) {}
+    }
+  },
+  remove: function(k) {
+    try { localStorage.removeItem(k); } catch (e) {}
+    if (window.yandexScheduleCloudSync) {
+      try { window.yandexScheduleCloudSync(); } catch (e) {}
+    }
+  }
+};
+
+window.showFatal = function(msg) {
+  try {
+    var el = document.getElementById('fatalError');
+    if (el) { el.style.display = 'block'; el.textContent += '\n' + msg; }
+  } catch (e) {}
+};
+
+window.addEventListener('error', function(e) {
+  var m = (e.error && (e.error.stack || e.error.message)) || e.message || '?';
+  if (m.indexOf('Pointer lock') >= 0) return;
+  if (window.showFatal) window.showFatal('[ERROR] ' + m);
+});
+
+/* =========================================================================
+   YANDEX GAMES SDK — ядро интеграции (п. 1.1 требований платформы)
+   ========================================================================= */
+window.YSDK = {
+  sdk: null,
+  player: null,
+  playerData: null,
+  lb: null,
+  ready: false,
+  authorized: false,
+  lang: 'ru',
+  device: 'desktop',
+  canReview: false,
+  env: null
+};
+
+window.yandexInit = async function() {
+  if (typeof YaGames === 'undefined') {
+    console.warn('[YSDK] YaGames не найден — оффлайн-режим');
+    return false;
+  }
+  try {
+    window.YSDK.sdk = await YaGames.init();
+    window.ysdk = window.YSDK.sdk;
+
+    window.YSDK.env = (window.YSDK.sdk.environment || {});
+    window.YSDK.lang = (window.YSDK.env.i18n && window.YSDK.env.i18n.lang) || 'ru';
+
+    try {
+      window.YSDK.device = (window.YSDK.sdk.deviceInfo && window.YSDK.sdk.deviceInfo.type) || 'desktop';
+    } catch (e) {
+      window.YSDK.device = 'desktop';
+    }
+
+    try {
+      window.YSDK.canReview = !!(window.YSDK.sdk.feedback && window.YSDK.sdk.feedback.canReview());
+    } catch (e) {
+      window.YSDK.canReview = false;
+    }
+
+    try {
+      window.YSDK.player = await window.YSDK.sdk.getPlayer({ scopes: false });
+      window.YSDK.authorized = (window.YSDK.player.getMode() === 'lite') ? false : true;
+      console.log('[YSDK] player mode:', window.YSDK.player.getMode(),
+                  '| authorized:', window.YSDK.authorized);
+    } catch (e) {
+      console.warn('[YSDK] player not available', e);
+      window.YSDK.player = null;
+    }
+
+    try {
+      window.YSDK.lb = await window.YSDK.sdk.getLeaderboards();
+    } catch (e) {
+      console.warn('[YSDK] leaderboards not available', e);
+      window.YSDK.lb = null;
+    }
+
+    window.YSDK.ready = true;
+
+    try {
+      window.YSDK.sdk.features.LoadingAPI.ready();
+      console.log('[YSDK] LoadingAPI.ready() — отправлен');
+    } catch (e) {
+      console.warn('[YSDK] LoadingAPI.ready failed', e);
+    }
+
+    try {
+      window.YSDK.sdk.on('game_api_pause', function() {
+        if (window.yandexGameplayStop) window.yandexGameplayStop();
+      });
+      window.YSDK.sdk.on('game_api_resume', function() {
+        if (window.yandexGameplayStart) window.yandexGameplayStart();
+      });
+    } catch (e) {}
+
+    console.log('[YSDK] ✅ Инициализирован | lang:', window.YSDK.lang, '| device:', window.YSDK.device);
+    return true;
+  } catch (e) {
+    console.error('[YSDK] ❌ Init failed', e);
+    return false;
+  }
+};
+
+var _ysdkCloudTimer = 0;
+window.yandexScheduleCloudSync = function() {
+  if (!window.YSDK.ready || !window.YSDK.player) return;
+  clearTimeout(_ysdkCloudTimer);
+  _ysdkCloudTimer = setTimeout(window.yandexPushCloud, 1500);
+};
+
+window.yandexPushCloud = async function() {
+  if (!window.YSDK.player) return;
+  try {
+    var data = {};
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('gg_') === 0) {
+        var v = localStorage.getItem(k);
+        if (v != null && v.length < 180000) data[k] = v;
+      }
+    }
+    await window.YSDK.player.setData(data, false);
+    console.log('[YSDK] ☁️ Push OK, ключей:', Object.keys(data).length);
+  } catch (e) {
+    console.warn('[YSDK] cloud push fail', e);
+  }
+};
+
+window.yandexPullCloud = async function() {
+  if (!window.YSDK.player) return;
+  try {
+    var data = await window.YSDK.player.getData();
+    var n = 0;
+    for (var k in data) {
+      if (data[k] != null) {
+        try { localStorage.setItem(k, data[k]); n++; } catch (e) {}
+      }
+    }
+    console.log('[YSDK] ☁️ Pull OK, ключей:', n);
+  } catch (e) {
+    console.warn('[YSDK] cloud pull fail', e);
+  }
+};
+
+window.yandexShowFullscreen = function(onDone) {
+  if (!window.YSDK.ready) { if (onDone) onDone(); return; }
+  try {
+    window.YSDK.sdk.adv.showFullscreenAdv({
+      callbacks: {
+        onClose: function(wasShown) {
+          console.log('[YSDK] FS ad closed, shown:', wasShown);
+          if (onDone) onDone();
+        },
+        onError: function(e) {
+          console.warn('[YSDK] FS ad error', e);
+          if (onDone) onDone();
+        }
+      }
+    });
+  } catch (e) {
+    if (onDone) onDone();
+  }
+};
+
+window.yandexShowRewarded = function(onReward, onClose) {
+  if (!window.YSDK.ready) return false;
+  try {
+    window.YSDK.sdk.adv.showRewardedVideo({
+      callbacks: {
+        onOpen: function() { console.log('[YSDK] RV opened'); },
+        onRewarded: function() {
+          console.log('[YSDK] RV rewarded');
+          if (onReward) onReward();
+        },
+        onClose: function() {
+          console.log('[YSDK] RV closed');
+          if (onClose) onClose();
+        },
+        onError: function(e) { console.warn('[YSDK] RV error', e); }
+      }
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+window.yandexGameplayStart = function() {
+  if (!window.YSDK.ready) return;
+  try { window.YSDK.sdk.features.GameplayAPI.start(); }
+  catch (e) {}
+};
+
+window.yandexGameplayStop = function() {
+  if (!window.YSDK.ready) return;
+  try { window.YSDK.sdk.features.GameplayAPI.stop(); }
+  catch (e) {}
+};
+
+window.yandexSubmitScore = async function(score) {
+  if (!window.YSDK.lb) return;
+  if (!window.YSDK.authorized) return;
+  try {
+    await window.YSDK.lb.setLeaderboardScore('kills', Math.max(0, Math.floor(score)));
+    console.log('[YSDK] Score submitted:', score);
+  } catch (e) {
+    console.warn('[YSDK] submitScore fail', e);
+  }
+};
+
+window.yandexFetchTop = async function() {
+  if (!window.YSDK.lb) return null;
+  try {
+    return await window.YSDK.lb.getLeaderboardEntries('kills', {
+      quantityTop: 10,
+      includeUser: true,
+      quantityAround: 3
+    });
+  } catch (e) {
+    console.warn('[YSDK] fetchTop fail', e);
+    return null;
+  }
+};
+
+window.yandexRequestReview = function() {
+  if (!window.YSDK.ready || !window.YSDK.canReview) return false;
+  try {
+    window.YSDK.sdk.feedback.requestReview().then(function(result) {
+      console.log('[YSDK] review:', result);
+    }).catch(function(e) { console.warn('[YSDK] review fail', e); });
+    return true;
+  } catch (e) { return false; }
+};
+
+window.yandexGetPlayerName = function() {
+  if (!window.YSDK.player) return null;
+  try {
+    var n = window.YSDK.player.getName();
+    return n || null;
+  } catch (e) { return null; }
+};
+
+window.yandexGetPlayerAvatar = function() {
+  if (!window.YSDK.player) return null;
+  try {
+    var p = window.YSDK.player.getPhoto('medium');
+    return p || null;
+  } catch (e) { return null; }
+};
+
+/* =========================================================================
+   ЛОГИН / РЕГИСТРАЦИЯ — с опциональной интеграцией Yandex-аккаунта
+   ========================================================================= */
+(function() {
+  function simpleHash(str) {
+    var h = 5381;
+    for (var i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
+    return (h >>> 0).toString(36);
+  }
+  function getUserKey(nick) { return 'gg_user_' + nick.toLowerCase(); }
+  function errMsg(m) {
+    var el = document.getElementById('loginMsg');
+    if (el) el.textContent = m;
+  }
+  function makeDefaultProfile(nick) {
+    return {
+      xp: 0, level: 1, coins: 200, unlockedWeapons: [0, 5],
+      medkits: 0, armor: 0, kills: 0, knifeKills: 0, grenadeKills: 0,
+      maxWave: 0, activeWeapon: 0, ammoReserve: {}, weaponMags: {},
+      achievements: [], nick: nick, totalShots: 0, totalHits: 0,
+      headshots: 0, deaths: 0, lastCaseDaily: null, promoUsed: [],
+      prestige: 0, totalCoinsEarned: 0, duelWins: 0, duelLosses: 0,
+      weaponSkins: {}, equippedSkin: {}
+    };
+  }
+  function proceed(nick) {
+    try {
+      window.safeLS.set('gg_session', nick);
+      window.safeLS.set('gg_last_user', nick);
+    } catch (e) {}
+    window.__ggLoggedInNick = nick;
+    var ls = document.getElementById('loginScreen');
+    if (ls) ls.classList.add('hidden');
+    var lk = document.getElementById('lock');
+    if (lk) { lk.classList.remove('hidden'); lk.style.display = 'flex'; }
+    try {
+      window.dispatchEvent(new CustomEvent('gg:login', { detail: { nick: nick } }));
+    } catch (e) {}
+  }
+  function doLogin() {
+    var nickEl = document.getElementById('loginNick');
+    var passEl = document.getElementById('loginPass');
+    if (!nickEl || !passEl) return;
+    var nick = nickEl.value.trim();
+    var pass = passEl.value;
+    if (!nick || !pass) { errMsg('Заполни оба поля'); return; }
+    var key = getUserKey(nick);
+    var hash = simpleHash(pass);
+    var stored = window.safeLS.get(key, '');
+    if (stored) {
+      try {
+        var u = JSON.parse(stored);
+        if (u.hash !== hash) { errMsg('Неверный пароль'); return; }
+      } catch (e) { errMsg('Ошибка данных'); return; }
+    } else {
+      window.safeLS.set(key, JSON.stringify({ hash: hash, created: Date.now() }));
+    }
+    var prof = null;
+    try {
+      var s = window.safeLS.get('gg_profile_v16', '');
+      if (s) prof = JSON.parse(s);
+    } catch (e) {}
+    if (!prof) prof = makeDefaultProfile(nick);
+    prof.nick = nick;
+    window.safeLS.set('gg_profile_v16', JSON.stringify(prof));
+    proceed(nick);
+  }
+  function doOffline() {
+    var nick = window.safeLS.get('gg_last_user', '') || ('Гость' + Math.floor(Math.random() * 9999));
+    var prof = null;
+    try {
+      var s = window.safeLS.get('gg_profile_v16', '');
+      if (s) prof = JSON.parse(s);
+    } catch (e) {}
+    if (!prof) prof = makeDefaultProfile(nick);
+    prof.nick = nick;
+    window.safeLS.set('gg_profile_v16', JSON.stringify(prof));
+    proceed(nick);
+  }
+  function attach() {
+    var b = document.getElementById('loginBtn');
+    var o = document.getElementById('loginOffline');
+    if (b && !b.__ggHandled) {
+      b.__ggHandled = true;
+      b.addEventListener('click', function(e) { e.preventDefault(); doLogin(); });
+    }
+    if (o && !o.__ggHandled) {
+      o.__ggHandled = true;
+      o.addEventListener('click', function(e) { e.preventDefault(); doOffline(); });
+    }
+    var p = document.getElementById('loginPass');
+    var n = document.getElementById('loginNick');
+    if (p && !p.__ggHandled) {
+      p.__ggHandled = true;
+      p.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+    }
+    if (n && !n.__ggHandled) {
+      n.__ggHandled = true;
+      n.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+    }
+    try {
+      var last = window.safeLS.get('gg_last_user', '');
+      if (last && n && !n.value) n.value = last;
+    } catch (e) {}
+
+    if (window.YSDK && window.YSDK.authorized) {
+      var ysName = window.yandexGetPlayerName();
+      if (ysName && n && !n.value) n.value = ysName;
+    }
+
+    try {
+      var session = window.safeLS.get('gg_session', '');
+      if (session) {
+        var ls = document.getElementById('loginScreen');
+        if (ls) ls.classList.add('hidden');
+        var lk = document.getElementById('lock');
+        if (lk) { lk.classList.remove('hidden'); lk.style.display = 'flex'; }
+        window.__ggLoggedInNick = session;
+        setTimeout(function() {
+          try {
+            window.dispatchEvent(new CustomEvent('gg:login', { detail: { nick: session } }));
+          } catch (e) {}
+        }, 0);
+      }
+    } catch (e) {}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
 })();
 </script>
 
@@ -669,7 +1063,7 @@ const MY_UID='u'+Math.random().toString(36).slice(2,10);
 const peerUids=new Set([MY_UID]);
 let mpConnected=false,mpNick='Player',ws=null,lastMPStateSend=0;
 const remotePlayers=new Map();
-const remoteHitboxes=[]; /* Хитбоксы удалённых игроков для PvP */
+const remoteHitboxes=[];
 function isHost(){let min=MY_UID;peerUids.forEach(u=>{if(u<min)min=u;});return min===MY_UID;}
 let MAP_SIZE=56,MAP_HALF=28;
 let localStream=null;
@@ -794,8 +1188,28 @@ function saveProfile(){window.safeLS.set('gg_profile_v16',JSON.stringify(profile
 function getReserve(idx){return profile.ammoReserve[idx]!==undefined?profile.ammoReserve[idx]:DEFAULT_AMMO[idx];}
 function setReserve(idx,val){profile.ammoReserve[idx]=val;saveProfile();}
 function xpForLevel(l){return Math.floor(100*Math.pow(1.35,l-1));}
-function addXP(n){profile.xp+=n;while(profile.xp>=xpForLevel(profile.level)){profile.xp-=xpForLevel(profile.level);profile.level++;onLevelUp();}saveProfile();updateProfileHud();checkAchievements();}
-function addCoins(n){const boost=1+profile.prestige*0.05;const gain=Math.round(n*boost);profile.coins+=gain;profile.totalCoinsEarned+=gain;saveProfile();updateProfileHud();checkAchievements();}
+function addXP(n){
+  profile.xp += n;
+  while (profile.xp >= xpForLevel(profile.level)) {
+    profile.xp -= xpForLevel(profile.level);
+    profile.level++;
+    onLevelUp();
+  }
+  saveProfile();
+  updateProfileHud();
+  checkAchievements();
+  if (window.yandexScheduleCloudSync) window.yandexScheduleCloudSync();
+}
+function addCoins(n){
+  var boost = 1 + profile.prestige * 0.05;
+  var gain = Math.round(n * boost);
+  profile.coins += gain;
+  profile.totalCoinsEarned += gain;
+  saveProfile();
+  updateProfileHud();
+  checkAchievements();
+  if (window.yandexScheduleCloudSync) window.yandexScheduleCloudSync();
+}
 function onLevelUp(){showBanner('УРОВЕНЬ '+profile.level+'!');playVictory();}
 function updateProfileHud(){const el=id=>document.getElementById(id);if(el('pLevel'))el('pLevel').textContent=profile.level;if(el('pCoins'))el('pCoins').textContent=profile.coins;if(el('pXP'))el('pXP').textContent=profile.xp;if(el('pXPNext'))el('pXPNext').textContent=xpForLevel(profile.level);if(el('xpFill'))el('xpFill').style.width=(profile.xp/xpForLevel(profile.level)*100)+'%';if(el('pNick'))el('pNick').textContent=profile.nick||'—';}
 function checkAchievements(){if(!profile.achievements)profile.achievements=[];let unlocked=false;ACHIEVEMENTS.forEach(a=>{if(!profile.achievements.includes(a.id)&&a.check(profile)){profile.achievements.push(a.id);unlocked=true;const reward=a.tier==='easy'?50:a.tier==='medium'?200:500;profile.coins+=reward;showBanner('🏆 '+a.name+' +'+reward+'💰',2500);playLoot();}});if(unlocked){saveProfile();updateProfileHud();buildAchievements();}}
@@ -1152,7 +1566,6 @@ function updateDamageNumbers(dt){for(let i=damageNumbers.length-1;i>=0;i--){cons
 function spawnTracer(from,to,color,width,isEnemy){const dir=new THREE.Vector3().subVectors(to,from);const len=dir.length();if(len<0.01)return;const geo=new THREE.CylinderGeometry(width,width,len,4,1,true);geo.translate(0,len/2,0);geo.rotateX(Math.PI/2);const c=isEnemy?0xff2222:color;const mat=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false});const mesh=new THREE.Mesh(geo,mat);mesh.position.copy(from);mesh.lookAt(to);scene.add(mesh);tracers.push({mesh,life:0,maxLife:0.1});}
 function updateTracers(dt){for(let i=tracers.length-1;i>=0;i--){const t=tracers[i];t.life+=dt;t.mesh.material.opacity=1-t.life/t.maxLife;if(t.life>=t.maxLife){scene.remove(t.mesh);t.mesh.geometry.dispose();t.mesh.material.dispose();tracers.splice(i,1);}}}
 
-/* === РАКЕТЫ ДЛЯ ГРАНАТОМЁТА === */
 const rockets=[];
 function spawnRocket(startPos,dir,isMine){
   const g=new THREE.Group();
@@ -1168,15 +1581,12 @@ function spawnRocket(startPos,dir,isMine){
     fin.position.set(Math.cos(a)*0.062,Math.sin(a)*0.062,-0.10);
     fin.rotation.z=a;g.add(fin);
   }
-  // Огненный факел позади
   const trail=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.28,6),new THREE.MeshBasicMaterial({color:0xffaa22,transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false}));
   trail.rotation.x=-Math.PI/2;trail.position.z=-0.28;g.add(trail);
-  
   g.position.copy(startPos);g.position.y-=0.1;
   const look=startPos.clone().add(dir);
   g.lookAt(look);
   scene.add(g);
-  
   const vel=dir.clone().multiplyScalar(38);
   vel.y+=1.5;
   rockets.push({mesh:g,vel,life:6.0,isMine:!!isMine,trailMesh:trail});
@@ -1187,37 +1597,28 @@ function updateRockets(dt){
     const r=rockets[i];
     r.life-=dt;
     if(r.life<=0){explodeRocket(r.mesh.position.clone(),r.isMine);scene.remove(r.mesh);disposeTree(r.mesh);rockets.splice(i,1);continue;}
-    
-    r.vel.y-=5*dt; // гравитация
+    r.vel.y-=5*dt;
     const step=r.vel.clone().multiplyScalar(dt);
     const len=step.length();
     if(len<0.001){continue;}
     const dirN=step.clone().normalize();
-    
-    // Проверка столкновений рейкастом
     const rr=new THREE.Raycaster(r.mesh.position.clone(),dirN,0.05,len+0.3);
     const wh=rr.intersectObjects(worldColliders,false);
     const eh=rr.intersectObjects(enemyHitboxes,false);
     const rh=rr.intersectObjects(remoteHitboxes,false);
-    
     let hitPos=null;
     let minDist=Infinity;
     if(wh.length&&wh[0].distance<minDist){minDist=wh[0].distance;hitPos=wh[0].point.clone();}
     if(eh.length&&eh[0].distance<minDist){minDist=eh[0].distance;hitPos=eh[0].point.clone();}
     if(rh.length&&rh[0].distance<minDist){minDist=rh[0].distance;hitPos=rh[0].point.clone();}
-    
     if(hitPos){
       explodeRocket(hitPos,r.isMine);
       scene.remove(r.mesh);disposeTree(r.mesh);rockets.splice(i,1);
       continue;
     }
-    
     r.mesh.position.add(step);
-    // Ориентация по вектору движения
     const lookTgt=r.mesh.position.clone().add(r.vel.clone().normalize());
     r.mesh.lookAt(lookTgt);
-    
-    // Дым/искры позади
     if(Math.random()<0.85){
       spawnFlameParticle(r.mesh.position.clone().addScaledVector(dirN,-0.3),new THREE.Vector3((Math.random()-0.5)*0.5,-0.3+Math.random()*0.4,(Math.random()-0.5)*0.5),0.55,0.11,0.0);
     }
@@ -1226,21 +1627,16 @@ function updateRockets(dt){
 
 function explodeRocket(pos,byMe){
   playExplosion();
-  // Большой взрыв
   const ex=new THREE.Mesh(new THREE.SphereGeometry(0.7,10,8),new THREE.MeshBasicMaterial({color:0xffaa22,transparent:true}));
   ex.position.copy(pos);scene.add(ex);
   const st=performance.now();
   (function a(){const t=(performance.now()-st)/600;if(t>=1){scene.remove(ex);ex.geometry.dispose();ex.material.dispose();return;}ex.scale.setScalar(1+t*13);ex.material.opacity=1-t;requestAnimationFrame(a);})();
-  // Дым-кольцо
   for(let i=0;i<16;i++){
     const dir=new THREE.Vector3((Math.random()-0.5)*2,Math.random()*0.9,(Math.random()-0.5)*2).normalize();
     spawnFlameParticle(pos.clone(),dir,0.9,0.20,0.06);
   }
-  
   const RADIUS=6.5;
   const MAXDMG=220;
-  
-  // Урон ботам
   for(const e of enemies){
     if(!e.userData.alive)continue;
     const dx=e.position.x-pos.x,dz=e.position.z-pos.z,dy=(e.position.y+1)-pos.y;
@@ -1254,8 +1650,6 @@ function explodeRocket(pos,byMe){
       }
     }
   }
-  
-  // Урон удалённым игрокам (PvP)
   for(const [uid,rp] of remotePlayers){
     const dx=rp.mesh.position.x-pos.x,dz=rp.mesh.position.z-pos.z,dy=(rp.mesh.position.y+1)-pos.y;
     const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
@@ -1264,8 +1658,6 @@ function explodeRocket(pos,byMe){
       sendPvPDamage(uid,dmg,pos);
     }
   }
-  
-  // Урон себе
   const dx=camera.position.x-pos.x,dz=camera.position.z-pos.z,dy=camera.position.y-pos.y;
   const dSelf=Math.sqrt(dx*dx+dy*dy+dz*dz);
   if(dSelf<RADIUS){
@@ -1274,7 +1666,6 @@ function explodeRocket(pos,byMe){
   }
 }
 
-/* === ЧАСТИЦЫ ОГНЯ (огнемёт, ракеты, взрывы) === */
 const flameParticles=[];
 function spawnFlameParticle(pos,dir,life,size,growth){
   life=life||0.6;size=size||0.15;growth=growth||0;
@@ -1298,8 +1689,8 @@ function updateFlameParticles(dt){
     p.life-=dt;
     if(p.life<=0){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();flameParticles.splice(i,1);continue;}
     p.mesh.position.addScaledVector(p.vel,dt);
-    p.vel.y+=2.5*dt; // огонь поднимается
-    p.vel.multiplyScalar(1-1.6*dt); // сопротивление воздуха
+    p.vel.y+=2.5*dt;
+    p.vel.multiplyScalar(1-1.6*dt);
     p.mesh.material.opacity=Math.max(0,p.life/p.maxLife)*0.92;
     if(p.growth>0){
       const t=1-p.life/p.maxLife;
@@ -1734,23 +2125,44 @@ if(isMobile)document.getElementById('mobileControls').classList.add('active');
 function showBanner(t,d){if(!waveBannerEl)return;waveBannerEl.textContent=t;waveBannerEl.style.opacity=1;bannerTimer=performance.now()+(d||1500);}
 function showMsg(t,ms){const el=document.getElementById('msg');el.textContent=t;el.style.opacity=1;msgTimer=performance.now()+ms;}
 function showGameOver(won){
-  goTitle.textContent=won?'ПОБЕДА!':'ПОРАЖЕНИЕ';goTitle.classList.toggle('lose',!won);
-  goSub.textContent=gameMode==='zombie'?('Волн пройдено: '+zombieWave):(isDuelMode?'Дуэль окончена':'Вы погибли');
-  const acc=stats.shots>0?Math.round(stats.hits/stats.shots*100):0;
-  const kd=stats.deaths>0?(stats.kills/stats.deaths).toFixed(2):stats.kills.toFixed(2);
-  const t=Math.floor((performance.now()-stats.startTime)/1000);const mm=Math.floor(t/60),ss=t%60;
-  document.getElementById('stKills').textContent=stats.kills;
-  document.getElementById('stShots').textContent=stats.shots;
-  document.getElementById('stHits').textContent=stats.hits;
-  document.getElementById('stAcc').textContent=acc+'%';
-  document.getElementById('stHS').textContent=stats.headshots;
-  document.getElementById('stDeaths').textContent=stats.deaths;
-  document.getElementById('stKD').textContent=kd;
-  document.getElementById('stXP').textContent=stats.xpGained;
-  document.getElementById('stTime').textContent=mm+':'+ss.toString().padStart(2,'0');
-  gameOverOverlay.classList.add('show');
+  goTitle.textContent = won ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ';
+  goTitle.classList.toggle('lose', !won);
+  goSub.textContent = gameMode === 'zombie'
+    ? ('Волн пройдено: ' + zombieWave)
+    : (isDuelMode ? 'Дуэль окончена' : 'Вы погибли');
+
+  var acc = stats.shots > 0 ? Math.round(stats.hits / stats.shots * 100) : 0;
+  var kd = stats.deaths > 0 ? (stats.kills / stats.deaths).toFixed(2) : stats.kills.toFixed(2);
+  var t = Math.floor((performance.now() - stats.startTime) / 1000);
+  var mm = Math.floor(t / 60), ss = t % 60;
+
+  document.getElementById('stKills').textContent = stats.kills;
+  document.getElementById('stShots').textContent = stats.shots;
+  document.getElementById('stHits').textContent = stats.hits;
+  document.getElementById('stAcc').textContent = acc + '%';
+  document.getElementById('stHS').textContent = stats.headshots;
+  document.getElementById('stDeaths').textContent = stats.deaths;
+  document.getElementById('stKD').textContent = kd;
+  document.getElementById('stXP').textContent = stats.xpGained;
+  document.getElementById('stTime').textContent = mm + ':' + ss.toString().padStart(2, '0');
+
+  if (window.yandexGameplayStop) window.yandexGameplayStop();
+  if (window.yandexSubmitScore) window.yandexSubmitScore(profile.kills || 0);
+  if (window.yandexPushCloud) { try { window.yandexPushCloud(); } catch (e) {} }
+
   deathOverlayEl.classList.remove('show');
-  if(document.pointerLockElement)document.exitPointerLock();
+  if (document.pointerLockElement) document.exitPointerLock();
+
+  var showOverlay = function() {
+    gameOverOverlay.classList.add('show');
+  };
+  if (window.yandexShowFullscreen) {
+    setTimeout(function() {
+      window.yandexShowFullscreen(showOverlay);
+    }, 350);
+  } else {
+    showOverlay();
+  }
 }
 function hideGameOver(){gameOverOverlay.classList.remove('show');}
 document.getElementById('restartGameBtn').addEventListener('click',e=>{e.preventDefault();hideGameOver();resetGame();startGame();});
@@ -1770,7 +2182,6 @@ function spawnPlayerCorpse(){
   (function fall(){const t=Math.min((performance.now()-t0)/550,1);const e=t*t*(3-2*t);corpse.rotation.x=-Math.PI/2*e;corpse.position.y=0.15*e;if(t<1)requestAnimationFrame(fall);})();
   setTimeout(()=>{if(playerCorpse===corpse){scene.remove(corpse);disposeTree(corpse);playerCorpse=null;}},4500);
 }
-/* === ОБНОВЛЕНО: В team/gungame/duel игрок респавнится. Только зомби заканчивает игру. === */
 function damagePlayer(dmg,killerPos){
   if(state.dead)return;
   state.hp-=dmg;playHurt();
@@ -1779,14 +2190,12 @@ function damagePlayer(dmg,killerPos){
     state.hp=0;state.dead=true;stats.deaths++;
     deathFallActive=true;deathFallTimer=DEATH_FALL_DURATION;
     spawnPlayerCorpse();
-    /* Зомби — конец игры */
     if(gameMode==='zombie'&&!isDuelMode){
       matchOver=true;
       if(zombieWave>profile.maxWave){profile.maxWave=zombieWave;saveProfile();}
       setTimeout(()=>showGameOver(false),1800);
       return;
     }
-    /* Дуэль, командный бой и gun game — респавн */
     respawnTimer=(isDuelMode?3.5:3.0);
     deathOverlayEl.classList.add('show');
     document.getElementById('respawnCount').textContent='3';
@@ -1818,6 +2227,7 @@ function onKill(){
   document.getElementById('k').textContent=state.teamKills;
   document.getElementById('killCount').textContent=state.teamKills;
   document.getElementById('xpCount').textContent=stats.xpGained;
+  if(profile.kills % 3 === 0 && window.yandexSubmitScore){window.yandexSubmitScore(profile.kills);}
   if(gameMode==='gungame'&&!isDuelMode){
     state.kills++;
     if(state.kills>=NEEDED){
@@ -1906,8 +2316,6 @@ function tryShoot(){
   state.nextFire=now+w.rate;
   if(state.ammo!==Infinity){state.ammo--;updateAmmoHUD();}
   stats.shots++;
-  
-  /* === ГРАНАТОМЁТ — вылетает ракета === */
   if(w.rocket){
     playRocketLaunch();
     if(muzzleFlash){muzzleFlash.material.opacity=1;muzzleTimer=0.08;}
@@ -1921,15 +2329,12 @@ function tryShoot(){
     if(state.ammo===0)startReload();
     return;
   }
-  
-  /* === ОГНЕМЁТ — огонь и урон конусом === */
   if(w.flame){
     if(muzzleFlash)muzzleFlash.material.opacity=1;
     muzzleTimer=0.05;
     const range=w.range;
     const camDir=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
     const camDirFlat=new THREE.Vector3(camDir.x,0,camDir.z).normalize();
-    /* Спавним частицы огня вдоль направления */
     const spawnPos=camera.position.clone().addScaledVector(camDir,0.7);
     for(let i=0;i<3;i++){
       const p=camDir.clone();
@@ -1937,7 +2342,6 @@ function tryShoot(){
       p.normalize().multiplyScalar(7+Math.random()*5);
       spawnFlameParticle(spawnPos.clone(),p,0.7,0.18+Math.random()*0.10,0.03);
     }
-    /* Урон всем в конусе */
     for(const e of enemies){
       if(!e.userData.alive)continue;
       const dx=e.position.x-camera.position.x,dz=e.position.z-camera.position.z;
@@ -1947,7 +2351,6 @@ function tryShoot(){
       if(camDirFlat.dot(toE)<0.72)continue;
       if(isHost()){e.userData.hp-=w.dmg;spawnDamageNumber(e.position,Math.round(w.dmg),false);if(e.userData.hp<=0)killEnemy(e,true);}
     }
-    /* PvP — огонь по удалённым игрокам */
     for(const [uid,rp] of remotePlayers){
       const dx=rp.mesh.position.x-camera.position.x,dz=rp.mesh.position.z-camera.position.z;
       const d=Math.hypot(dx,dz);
@@ -1956,12 +2359,9 @@ function tryShoot(){
       if(camDirFlat.dot(toE)<0.72)continue;
       sendPvPDamage(uid,w.dmg,spawnPos);
     }
-    /* Урон себе, если стоишь в собственном огне */
     if(state.ammo===0)startReload();
     return;
   }
-  
-  /* === ОБЫЧНЫЙ ВЫСТРЕЛ === */
   playShot(state.current);
   if(muzzleFlash){muzzleFlash.material.opacity=1;muzzleTimer=0.05;}
   vmState.recoilTarget+=0.045;
@@ -1991,7 +2391,6 @@ function tryShoot(){
     else if(wHit){hitPoint=wHit.point.clone();const n=wHit.face?wHit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(wHit.object.matrixWorld)).normalize():new THREE.Vector3(0,1,0);spawnBulletHole(hitPoint,n);}
     else{hitPoint=camera.position.clone().add(dir.clone().multiplyScalar(w.range));}
     spawnTracer(muzzleWorld.clone(),hitPoint,w.tracer,w.tracerW,false);
-    /* Попадание по боту */
     if(hitEnemy&&hitEnemy.userData.alive){
       stats.hits++;playHit();showHitmarker();
       let dmg=w.dmg*limbMul;
@@ -2000,7 +2399,6 @@ function tryShoot(){
       spawnBloodDecal(hitEnemy.position);
       if(isHost()){hitEnemy.userData.hp-=dmg;if(hitEnemy.userData.hp<=0)killEnemy(hitEnemy,true);}
     }
-    /* Попадание по удалённому игроку (PvP) */
     if(hitRemote){
       stats.hits++;playHit();showHitmarker();
       let dmg=w.dmg*limbMul;
@@ -2027,7 +2425,6 @@ function knifeStrike(){
     spawnDamageNumber(e.position,Math.round(w.dmg),false);
     if(isHost()){e.userData.hp=0;killEnemy(e,true,true);}
   }
-  /* PvP — нож по удалённым игрокам */
   for(const [uid,rp] of remotePlayers){
     const toE=new THREE.Vector3(rp.mesh.position.x-camera.position.x,0,rp.mesh.position.z-camera.position.z);
     if(toE.length()>w.range)continue;
@@ -2075,6 +2472,7 @@ function zombieAmmoCost(w){return w.ammoPrice>0?Math.round(w.ammoPrice*0.6):120;
 function openInGameShop(){
   if(!state.started||state.dead||matchOver||editingButtons||isDuelMode)return;
   if(gameMode!=='zombie'&&gameMode!=='team')return;
+  if(window.yandexGameplayStop)window.yandexGameplayStop();
   inGameShopOpen=true;
   document.getElementById('inGameShop').classList.add('show');
   paused=true;
@@ -2084,7 +2482,11 @@ function openInGameShop(){
 function closeInGameShop(){
   inGameShopOpen=false;
   document.getElementById('inGameShop').classList.remove('show');
-  if(state.started&&!state.dead&&!matchOver){paused=false;if(!isMobile)setTimeout(tryRequestLock,1100);}
+  if(state.started&&!state.dead&&!matchOver){
+    paused=false;
+    if(window.yandexGameplayStart)window.yandexGameplayStart();
+    if(!isMobile)setTimeout(tryRequestLock,1100);
+  }
 }
 function buildInGameShop(){
   const grid=document.getElementById('inGameShopGrid');if(!grid)return;grid.innerHTML='';
@@ -2160,7 +2562,50 @@ function buildCases(){const grid=document.getElementById('caseGrid');if(!grid)re
 function loadRating(){try{const s=window.safeLS.get('gg_rating_v16','');if(s)return JSON.parse(s);}catch(e){}return [];}
 function saveRating(r){window.safeLS.set('gg_rating_v16',JSON.stringify(r));}
 function updateRating(){const r=loadRating();const nick=profile.nick||'Player';const existing=r.find(x=>x.nick===nick);if(existing){if(state.teamKills>existing.kills)existing.kills=state.teamKills;}else r.push({nick,kills:state.teamKills,date:Date.now()});r.sort((a,b)=>b.kills-a.kills);saveRating(r.slice(0,20));}
-function buildRating(){const el=document.getElementById('ratingTable');if(!el)return;const r=loadRating();el.innerHTML='';if(r.length===0){el.innerHTML='<div style="color:#6a5a48;text-align:center;padding:20px">Пока нет записей</div>';return;}r.slice(0,10).forEach((e,i)=>{const row=document.createElement('div');row.className='rtRow'+(e.nick===profile.nick?' me':'');const medal=['🥇','🥈','🥉'][i]||('#'+(i+1));row.innerHTML=`<span class="rtRank">${medal}</span><span class="rtName">${e.nick}</span><span class="rtVal">${e.kills} убийств</span>`;el.appendChild(row);});}
+async function buildRating(){
+  var el = document.getElementById('ratingTable');
+  if (!el) return;
+  el.innerHTML = '<div style="color:#6a5a48;text-align:center;padding:20px;font-family:Consolas,monospace">⏳ Загрузка рейтинга...</div>';
+  var y = null;
+  if (window.yandexFetchTop) {
+    try { y = await window.yandexFetchTop(); } catch (e) { y = null; }
+  }
+  if (y && y.entries && y.entries.length) {
+    el.innerHTML = '';
+    var myUid = null;
+    try { myUid = window.YSDK.player && window.YSDK.player.getUniqueID(); } catch (e) {}
+    y.entries.forEach(function(entry, i) {
+      var row = document.createElement('div');
+      var medal = ['🥇', '🥈', '🥉'][i] || ('#' + (i + 1));
+      var isMe = myUid && entry.player && entry.player.uniqueID === myUid;
+      row.className = 'rtRow' + (isMe ? ' me' : '');
+      var name = (entry.player && entry.player.publicName) || 'Игрок';
+      if (name.length > 18) name = name.slice(0, 16) + '…';
+      row.innerHTML =
+        '<span class="rtRank">' + medal + '</span>' +
+        '<span class="rtName">' + name + '</span>' +
+        '<span class="rtVal">' + entry.score + ' убийств</span>';
+      el.appendChild(row);
+    });
+    return;
+  }
+  var r = loadRating();
+  el.innerHTML = '';
+  if (r.length === 0) {
+    el.innerHTML = '<div style="color:#6a5a48;text-align:center;padding:20px;font-family:Consolas,monospace">Пока нет записей</div>';
+    return;
+  }
+  r.slice(0, 10).forEach(function(e, i) {
+    var row = document.createElement('div');
+    row.className = 'rtRow' + (e.nick === profile.nick ? ' me' : '');
+    var medal = ['🥇', '🥈', '🥉'][i] || ('#' + (i + 1));
+    row.innerHTML =
+      '<span class="rtRank">' + medal + '</span>' +
+      '<span class="rtName">' + e.nick + '</span>' +
+      '<span class="rtVal">' + e.kills + ' убийств</span>';
+    el.appendChild(row);
+  });
+}
 
 document.querySelectorAll('.lobbyTab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.lobbyTab').forEach(x=>x.classList.remove('active'));
@@ -2177,6 +2622,16 @@ document.querySelectorAll('.map-btn').forEach(b=>b.addEventListener('click',()=>
 document.getElementById('lobbySettingsBtn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(state.started)return;pauseMenu.classList.add('show');});
 document.getElementById('lobbyEditBtn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(state.started)return;enterEditMode();});
 document.getElementById('lobbyKeysBtn').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();renderKeybinds();document.getElementById('keybindsMenu').classList.add('show');});
+document.getElementById('lobbyReviewBtn').addEventListener('click', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (window.YSDK && window.YSDK.canReview) {
+    var ok = window.yandexRequestReview();
+    if (!ok) showBanner('Оценка недоступна', 1500);
+  } else {
+    showBanner('Оценка пока недоступна', 1500);
+  }
+});
 document.getElementById('promoBtn').addEventListener('click',()=>{const inp=document.getElementById('promoInput');applyPromo(inp.value);inp.value='';});
 document.getElementById('promoInput').addEventListener('keydown',e=>{if(e.key==='Enter'){applyPromo(e.target.value);e.target.value='';}});
 
@@ -2347,7 +2802,6 @@ function drawMinimap(){
     mmCtx.fillStyle=e.userData.isZombie?'#6aff6a':'#ff4040';
     mmCtx.beginPath();mmCtx.arc(ex,ez,3,0,Math.PI*2);mmCtx.fill();
   }
-  /* Удалённые игроки на радаре */
   for(const [uid,rp] of remotePlayers){
     const dx=rp.mesh.position.x-camera.position.x,dz=rp.mesh.position.z-camera.position.z;
     const d2=dx*dx+dz*dz;
@@ -2378,11 +2832,9 @@ document.getElementById('mpJoinRoom').addEventListener('click',()=>joinRoom(docu
 document.getElementById('mpLeaveRoom').addEventListener('click',leaveRoom);
 document.getElementById('mpRefreshRooms').addEventListener('click',()=>{mpSend({t:'roomQuery',uid:MY_UID});});
 
-/* === ГОЛОСОВОЙ ЧАТ — код сохранён, UI скрыт === */
 async function startVoiceChat(){if(localStream)return;try{localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});var vi=document.getElementById('voiceIndicator');if(vi)vi.classList.add('on');}catch(e){showBanner('❌ Нет доступа к микрофону',2000);}}
 function stopVoiceChat(){if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}var vi=document.getElementById('voiceIndicator');if(vi)vi.classList.remove('on');}
 
-/* === PvP ДAMAGE === */
 function sendPvPDamage(targetUid,dmg,hitPos){
   if(!mpConnected||!ws||ws.readyState!==1)return;
   mpSend({t:'pvpDamage',uid:MY_UID,target:targetUid,dmg:dmg,fromNick:mpNick,killerPos:hitPos?{x:hitPos.x,y:hitPos.y,z:hitPos.z}:null});
@@ -2393,17 +2845,16 @@ document.getElementById('mpDisconnectBtn').addEventListener('click',()=>{if(ws){
 function clearRemotePlayers(){
   for(const rp of remotePlayers.values())scene.remove(rp.mesh);
   remotePlayers.clear();
-  remoteHitboxes.length=0; /* Очистка PvP-хитбоксов */
+  remoteHitboxes.length=0;
 }
 function handleMPMessage(m){
   if(!m||!m.t)return;if(m.uid===MY_UID)return;
   if(m.t==='hello'){peerUids.add(m.uid);if(!remotePlayers.has(m.uid))createRemotePlayer(m.uid);mpSend({t:'hello',uid:MY_UID,nick:mpNick});}
-  else if(m.t==='state'){if(!peerUids.has(m.uid))peerUids.add(m.uid);let rp=remotePlayers.get(m.uid);if(!rp)rp=createRemotePlayer(m.uid);const feetY=Math.max(0,(m.y||0)-PLAYER_HEIGHT_STAND);rp.mesh.position.set(m.x,feetY,m.z);rp.mesh.rotation.y=(m.ry||0)+Math.PI;/* Обновляем хитбоксы */if(rp.hitboxes)rp.hitboxes.forEach(hb=>{hb.updateWorldMatrix(true,false);});}
+  else if(m.t==='state'){if(!peerUids.has(m.uid))peerUids.add(m.uid);let rp=remotePlayers.get(m.uid);if(!rp)rp=createRemotePlayer(m.uid);const feetY=Math.max(0,(m.y||0)-PLAYER_HEIGHT_STAND);rp.mesh.position.set(m.x,feetY,m.z);rp.mesh.rotation.y=(m.ry||0)+Math.PI;if(rp.hitboxes)rp.hitboxes.forEach(hb=>{hb.updateWorldMatrix(true,false);});}
   else if(m.t==='shot'){const from=new THREE.Vector3(m.x,(m.y||0)-0.15,m.z);const dir=new THREE.Vector3(-Math.sin(m.ry||0),0,-Math.cos(m.ry||0));const to=from.clone().addScaledVector(dir,25);spawnTracer(from,to,0xffaa44,0.014,true);}
   else if(m.t==='roomCreate'){activeRooms.set(m.id,{id:m.id,name:m.name,map:m.map,mode:m.mode,host:m.host,ts:Date.now()});renderRoomList();}
   else if(m.t==='roomJoin'){if(currentRoom&&m.id===currentRoom.id){peerUids.add(m.uid);if(!remotePlayers.has(m.uid))createRemotePlayer(m.uid);if(isDuelMode&&currentRoom.host===MY_UID&&!duelOpponentUid){duelOpponentUid=m.uid;showBanner('⚔️ ДУЭЛЬ НАЧАЛАСЬ!',2500);duelStatusEl.classList.add('show');}}}
   else if(m.t==='pvpDamage'&&m.target===MY_UID){
-    /* Получили урон от другого игрока */
     const kp=m.killerPos?new THREE.Vector3(m.killerPos.x,m.killerPos.y,m.killerPos.z):null;
     damagePlayer(m.dmg,kp);
     addKillFeed('💥 '+m.fromNick+' → ВЫ (-'+Math.round(m.dmg)+')');
@@ -2417,7 +2868,6 @@ function createRemotePlayer(uid){
   scene.add(g);
   const rp={uid,mesh:g,parts:char.userData.parts,gunGroup:char.userData.parts.gun,currentWeaponIdx:-1,gunMesh:null,hitboxes:[]};
   const w=WEAPONS[0];const g2=buildWeaponModel(w.model,0);g2.scale.setScalar(Math.max(0.6,w.size[2]/0.85));rp.gunGroup.add(g2);rp.gunMesh=g2;rp.currentWeaponIdx=0;
-  /* === PvP-хитбоксы === */
   const zones=[
     {name:'head',y:1.72,x:0,w:0.32,h:0.32,d:0.32,mul:2.5,isHead:true},
     {name:'torso',y:1.15,x:0,w:0.62,h:0.72,d:0.42,mul:1.0},
@@ -2516,8 +2966,8 @@ function animate(now){
   if(!paused){
     updateReload();updateGrenades(dt);updateTeamSpawn(dt);updateGunGame(dt);updateZombieMode(dt);
     updateFires(dt);updateRadio(dt);updateBloodDecals(dt);updateDamageNumbers(dt);updateSmokes(dt);
-    updateRockets(dt);         /* Ракеты */
-    updateFlameParticles(dt);  /* Огонь */
+    updateRockets(dt);
+    updateFlameParticles(dt);
     if(state.dead&&respawnTimer>0){respawnTimer-=dt;const s=Math.max(0,Math.ceil(respawnTimer));if(respawnCountEl.textContent!==String(s))respawnCountEl.textContent=s;if(respawnTimer<=0)respawnPlayer();}
   }
   if(state.dead&&deathFallActive){deathFallTimer-=dt;const t=1-Math.max(0,deathFallTimer)/DEATH_FALL_DURATION;camera.position.y=Math.max(0.4,PLAYER_HEIGHT_STAND-t*1.2);camera.rotation.z=t*Math.PI*0.4;if(deathFallTimer<=0)deathFallActive=false;}
@@ -2575,6 +3025,7 @@ function tryRequestLock(){if(isMobile)return;const now=Date.now();if(now-lastPoi
 
 function startGame(){
   try{initAudio();}catch(e){}
+  if(window.yandexGameplayStart)window.yandexGameplayStart();
   if(!state.started){
     state.started=true;state.countdown=3;state.countdownTimer=1.0;state.lastCountShown=-1;
     state.teamKills=0;stats.xpGained=0;
@@ -2607,7 +3058,81 @@ function startGame(){
 }
 playBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();startGame();});
 playBtn.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();startGame();},{passive:false});
-function backToLobby(){saveCurrentMag();resetGame();lockEl.classList.remove('hidden');lockEl.style.display='flex';document.getElementById('waveHud').style.display='';duelStatusEl.classList.remove('show');document.getElementById('shopGameBtn').classList.remove('show');document.getElementById('inGameShop').classList.remove('show');updateMoneyHud();updateDuelPlayButton();buildAchievements();buildCases();buildRating();buildSkinWeaponGrid();buildSkinGrid();updateProfileHud();}
+
+/* ============================================================
+   REWARDED VIDEO — кнопка «+500 монет»
+   ============================================================ */
+(function() {
+  var lastRewardAt = 0;
+  var COOLDOWN = 5 * 60 * 1000;
+  var btn = document.getElementById('rewardCoinsBtn');
+  if (!btn) return;
+  function refresh() {
+    var now = Date.now();
+    if (now - lastRewardAt < COOLDOWN) {
+      var left = Math.ceil((COOLDOWN - (now - lastRewardAt)) / 1000);
+      var m = Math.floor(left / 60), s = left % 60;
+      btn.disabled = true;
+      btn.textContent = '⏳ Подожди ' + m + ':' + (s < 10 ? '0' : '') + s;
+    } else {
+      btn.disabled = false;
+      btn.textContent = '🎁 СМОТРЕТЬ РЕКЛАМУ → +500 МОНЕТ';
+    }
+  }
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    var now = Date.now();
+    if (now - lastRewardAt < COOLDOWN) return;
+    if (!window.YSDK || !window.YSDK.ready) {
+      showBanner('Реклама недоступна', 1500);
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '⏳ Загрузка...';
+    var shown = window.yandexShowRewarded(function() {
+      lastRewardAt = Date.now();
+      addCoins(500);
+      showBanner('🎁 +500 монет!', 2000);
+      playCase();
+      if (window.yandexPushCloud) window.yandexPushCloud();
+      refresh();
+    }, function() {
+      if (Date.now() - lastRewardAt >= COOLDOWN) {
+        btn.disabled = false;
+        btn.textContent = '🎁 СМОТРЕТЬ РЕКЛАМУ → +500 МОНЕТ';
+      } else {
+        refresh();
+      }
+    });
+    if (!shown) {
+      showBanner('Реклама недоступна', 1500);
+      btn.disabled = false;
+      btn.textContent = '🎁 СМОТРЕТЬ РЕКЛАМУ → +500 МОНЕТ';
+    }
+  });
+  setInterval(refresh, 1000);
+  refresh();
+})();
+
+function backToLobby(){
+  if(window.yandexGameplayStop)window.yandexGameplayStop();
+  saveCurrentMag();
+  resetGame();
+  lockEl.classList.remove('hidden');
+  lockEl.style.display='flex';
+  document.getElementById('waveHud').style.display='';
+  duelStatusEl.classList.remove('show');
+  document.getElementById('shopGameBtn').classList.remove('show');
+  document.getElementById('inGameShop').classList.remove('show');
+  updateMoneyHud();
+  updateDuelPlayButton();
+  buildAchievements();
+  buildCases();
+  buildRating();
+  buildSkinWeaponGrid();
+  buildSkinGrid();
+  updateProfileHud();
+}
 function resetGame(){
   saveCurrentMag();
   state.current=0;state.currentSlot=1;state.kills=0;state.hp=100;state.maxHp=100;
@@ -2634,7 +3159,6 @@ function resetGame(){
   for(const g of grenades)scene.remove(g.mesh);grenades.length=0;
   for(const s of smokeClouds){if(s.mesh){s.mesh.children.forEach(c=>{c.geometry.dispose();c.material.dispose();});scene.remove(s.mesh);}}smokeClouds.length=0;
   for(const z of incendiaryZones){if(z.mesh){scene.remove(z.mesh);z.mesh.geometry.dispose();z.mesh.material.dispose();}}incendiaryZones.length=0;
-  /* Очистка ракет и огня */
   for(const r of rockets){scene.remove(r.mesh);disposeTree(r.mesh);}rockets.length=0;
   for(const p of flameParticles){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();}flameParticles.length=0;
   document.getElementById('flashOverlay').style.opacity='0';
@@ -2651,8 +3175,20 @@ function resetGame(){
   if(document.pointerLockElement)document.exitPointerLock();
   stats.shots=0;stats.hits=0;stats.headshots=0;stats.deaths=0;stats.kills=0;stats.currentStreak=0;stats.xpGained=0;
 }
-function pauseGame(){if(!state.started||state.dead||matchOver||paused||editingButtons)return;paused=true;if(document.pointerLockElement)document.exitPointerLock();pauseMenu.classList.add('show');}
-function resumeGame(){pauseMenu.classList.remove('show');if(!paused)return;paused=false;if(state.started&&!state.dead&&!matchOver&&!isMobile)setTimeout(tryRequestLock,1100);}
+function pauseGame(){
+  if(!state.started||state.dead||matchOver||paused||editingButtons)return;
+  if(window.yandexGameplayStop)window.yandexGameplayStop();
+  paused=true;
+  if(document.pointerLockElement)document.exitPointerLock();
+  pauseMenu.classList.add('show');
+}
+function resumeGame(){
+  pauseMenu.classList.remove('show');
+  if(!paused)return;
+  paused=false;
+  if(window.yandexGameplayStart)window.yandexGameplayStart();
+  if(state.started&&!state.dead&&!matchOver&&!isMobile)setTimeout(tryRequestLock,1100);
+}
 document.getElementById('resumeBtn').addEventListener('click',resumeGame);
 document.getElementById('restartBtn').addEventListener('click',()=>{paused=false;pauseMenu.classList.remove('show');resetGame();startGame();});
 document.getElementById('backLobbyBtn').addEventListener('click',()=>{paused=false;pauseMenu.classList.remove('show');backToLobby();});
@@ -2716,25 +3252,74 @@ addEventListener('wheel',e=>{if(!state.started||state.dead||matchOver||paused||e
 
 window.addEventListener('gg:login',function(e){try{profile=loadProfile();if(e&&e.detail&&e.detail.nick){profile.nick=e.detail.nick;saveProfile();}updateProfileHud();loadSettingsToUI();buildAchievements();buildCases();buildRating();buildSkinWeaponGrid();buildSkinGrid();updateMoneyHud();}catch(err){console.warn('gg:login error',err);}});
 
-try{
-  switchMap('arena');
-  equipWeapon(0);
-  updateGrenadeHud();updateMedkitHud();updateMoneyHud();
-  camera.position.set(0,PLAYER_HEIGHT_STAND,MAP_HALF-3);
-  updateEnemyHud();
-  buildAchievements();buildCases();buildRating();buildSkinWeaponGrid();buildSkinGrid();
-  updateProfileHud();updateHpCircle();
-  loadSettingsToUI();
-  renderRoomList();
-  applyQuality(currentQuality);
-  applyRenderScale();
-  updateDuelPlayButton();
-}catch(initErr){console.error('INIT FAIL:',initErr);if(window.showFatal)window.showFatal('[INIT] '+(initErr.stack||initErr.message));}
-
-console.log('🎮 Gun Game Arena v23.0 загружена!');
-requestAnimationFrame(animate);
+/* =========================================================================
+   BOOT SEQUENCE — сначала SDK, потом облако, потом игра
+   ========================================================================= */
+(async function bootGame() {
+  try {
+    await window.yandexInit();
+  } catch (e) {
+    console.warn('[BOOT] SDK init skipped', e);
+  }
+  try {
+    await window.yandexPullCloud();
+  } catch (e) {
+    console.warn('[BOOT] Cloud pull skipped', e);
+  }
+  try {
+    profile = loadProfile();
+  } catch (e) {
+    console.warn('[BOOT] profile reload fail', e);
+  }
+  try {
+    switchMap('arena');
+    equipWeapon(0);
+    updateGrenadeHud();
+    updateMedkitHud();
+    updateMoneyHud();
+    camera.position.set(0, PLAYER_HEIGHT_STAND, MAP_HALF - 3);
+    updateEnemyHud();
+    buildAchievements();
+    buildCases();
+    buildRating();
+    buildSkinWeaponGrid();
+    buildSkinGrid();
+    updateProfileHud();
+    updateHpCircle();
+    loadSettingsToUI();
+    renderRoomList();
+    applyQuality(currentQuality);
+    applyRenderScale();
+    updateDuelPlayButton();
+  } catch (initErr) {
+    console.error('INIT FAIL:', initErr);
+    if (window.showFatal) window.showFatal('[INIT] ' + (initErr.stack || initErr.message));
+  }
+  console.log('🎮 Gun Game Arena v23.0 загружена!');
+  requestAnimationFrame(animate);
+})();
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);applyRenderScale();});
+
+/* =========================================================================
+   ФИНАЛЬНАЯ СИНХРОНИЗАЦИЯ ПРИ ЗАКРЫТИИ / СКРЫТИИ СТРАНИЦЫ
+   ========================================================================= */
+window.addEventListener('beforeunload', function() {
+  try {
+    if (window.yandexPushCloud) window.yandexPushCloud();
+  } catch (e) {}
+});
+
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    if (window.yandexGameplayStop) window.yandexGameplayStop();
+    try { if (window.yandexPushCloud) window.yandexPushCloud(); } catch (e) {}
+  } else {
+    if (state.started && !state.dead && !matchOver && !paused) {
+      if (window.yandexGameplayStart) window.yandexGameplayStart();
+    }
+  }
+});
 </script>
 </body>
 </html>
