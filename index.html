@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>Gun Game — Arena v22.0</title>
+<title>Gun Game — Arena v23.0</title>
 <style>
 html,body{margin:0!important;padding:0!important;height:100%!important;width:100%!important;overflow:hidden!important;background:#000!important}
 canvas#gameCanvas{position:fixed!important;top:0;left:0;width:100vw!important;height:100vh!important;display:block!important;z-index:1!important;pointer-events:auto!important}
@@ -158,9 +158,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:Arial
 #btnMedkit{background:rgba(255,120,120,0.4);border-color:rgba(255,160,160,0.8);font-size:20px}
 #btnSlot1,#btnSlot2,#btnSlot3{background:linear-gradient(180deg,rgba(140,90,255,0.55),rgba(90,50,180,0.45));border-color:rgba(180,140,255,0.9);font-size:22px;font-weight:bold}
 #btnShopMob{background:linear-gradient(180deg,rgba(255,180,60,0.7),rgba(180,110,20,0.55));border-color:#ffb347;font-size:22px}
-/* Кнопка микрофона и индикатор скрыты — код оставлен */
 #btnMic,#voiceIndicator{display:none!important}
-/* Превью-окно из лобби скрыто */
 #lobbyPreview{display:none!important}
 #editBackground{position:fixed;inset:0;z-index:12;display:none;pointer-events:none;background:linear-gradient(135deg,rgba(10,10,20,0.85) 0%,rgba(26,16,8,0.85) 50%,rgba(10,10,20,0.85) 100%)}
 #editBackground.show{display:block}
@@ -467,7 +465,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:Arial
 <div id="loginScreen">
   <div class="loginBox">
     <h1>GUN GAME</h1>
-    <div class="sub">АРЕНА · v22.0</div>
+    <div class="sub">АРЕНА · v23.0</div>
     <input id="loginNick" placeholder="Никнейм" maxlength="16">
     <input id="loginPass" type="password" placeholder="Пароль" maxlength="32">
     <button id="loginBtn">ВОЙТИ / РЕГИСТРАЦИЯ</button>
@@ -671,6 +669,7 @@ const MY_UID='u'+Math.random().toString(36).slice(2,10);
 const peerUids=new Set([MY_UID]);
 let mpConnected=false,mpNick='Player',ws=null,lastMPStateSend=0;
 const remotePlayers=new Map();
+const remoteHitboxes=[]; /* Хитбоксы удалённых игроков для PvP */
 function isHost(){let min=MY_UID;peerUids.forEach(u=>{if(u<min)min=u;});return min===MY_UID;}
 let MAP_SIZE=56,MAP_HALF=28;
 let localStream=null;
@@ -693,6 +692,7 @@ function playKnifeSwing(){tone(2000,0.12,0.1,'triangle');}
 function playKnifeHit(){tone(200,0.1,0.25,'square');}
 function playGrenadeThrow(){tone(400,0.3,0.15,'sine');}
 function playExplosion(){tone(120,0.6,0.5,'sine');}
+function playRocketLaunch(){tone(180,0.35,0.4,'sawtooth');setTimeout(()=>tone(90,0.4,0.35,'sawtooth'),80);}
 function playVictory(){if(!audioReady)return;const t=audioCtx.currentTime;[523.25,659.25,783.99,1046.5].forEach((f,i)=>{const o=audioCtx.createOscillator();o.type='triangle';o.frequency.setValueAtTime(f,t+i*0.14);const g=audioCtx.createGain();g.gain.setValueAtTime(0,t+i*0.14);g.gain.linearRampToValueAtTime(0.25,t+i*0.14+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+i*0.14+0.3);o.connect(g).connect(masterGain);o.start(t+i*0.14);o.stop(t+i*0.14+0.35);});}
 function playLoot(){tone(700,0.08,0.15);setTimeout(()=>tone(1100,0.1,0.15),70);}
 function playEmpty(){tone(150,0.15,0.15,'square');}
@@ -728,7 +728,7 @@ const WEAPONS=[
   {id:5,name:'Нож',dmg:9999,rate:0.45,range:2.6,pellets:1,size:[0.05,0.05,0.45],recoil:0.002,tracer:0xffffff,tracerW:0.008,model:'knife',magSize:Infinity,reloadTime:0,auto:false,price:0,ammoPack:0,ammoPrice:0,icon:'🔪',knife:true,noShop:true},
   {id:6,name:'Револьвер',dmg:85,rate:0.55,range:90,pellets:1,size:[0.10,0.14,0.52],recoil:0.022,tracer:0xffcc44,tracerW:0.02,model:'revolver',magSize:6,reloadTime:2.5,auto:false,price:1800,ammoPack:24,ammoPrice:200,icon:'🎯',pistol:true},
   {id:7,name:'Миниган',dmg:22,rate:0.045,range:80,pellets:1,size:[0.16,0.18,1.10],recoil:0.008,tracer:0xffaa22,tracerW:0.012,model:'minigun',magSize:200,reloadTime:4.5,auto:true,price:5000,ammoPack:200,ammoPrice:400,icon:'🔥',primary:true},
-  {id:8,name:'Гранатомёт',dmg:180,rate:1.4,range:60,pellets:1,size:[0.14,0.16,1.0],recoil:0.03,tracer:0x88ff44,tracerW:0.03,model:'rpg',magSize:1,reloadTime:3.5,auto:false,price:4000,ammoPack:4,ammoPrice:500,icon:'💥',primary:true},
+  {id:8,name:'Гранатомёт',dmg:180,rate:1.4,range:60,pellets:1,size:[0.14,0.16,1.0],recoil:0.03,tracer:0x88ff44,tracerW:0.03,model:'rpg',magSize:1,reloadTime:3.5,auto:false,price:4000,ammoPack:4,ammoPrice:500,icon:'💥',primary:true,rocket:true},
   {id:9,name:'Огнемёт',dmg:12,rate:0.05,range:9,pellets:1,size:[0.16,0.16,0.9],recoil:0.002,tracer:0xff6600,tracerW:0.06,model:'flamethrower',magSize:100,reloadTime:3.5,auto:true,price:3500,ammoPack:100,ammoPrice:300,icon:'🔥',primary:true,flame:true}
 ];
 const SLOT_PRIMARY_IDS=WEAPONS.filter(w=>w.primary).map(w=>w.id);
@@ -1152,6 +1152,162 @@ function updateDamageNumbers(dt){for(let i=damageNumbers.length-1;i>=0;i--){cons
 function spawnTracer(from,to,color,width,isEnemy){const dir=new THREE.Vector3().subVectors(to,from);const len=dir.length();if(len<0.01)return;const geo=new THREE.CylinderGeometry(width,width,len,4,1,true);geo.translate(0,len/2,0);geo.rotateX(Math.PI/2);const c=isEnemy?0xff2222:color;const mat=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false});const mesh=new THREE.Mesh(geo,mat);mesh.position.copy(from);mesh.lookAt(to);scene.add(mesh);tracers.push({mesh,life:0,maxLife:0.1});}
 function updateTracers(dt){for(let i=tracers.length-1;i>=0;i--){const t=tracers[i];t.life+=dt;t.mesh.material.opacity=1-t.life/t.maxLife;if(t.life>=t.maxLife){scene.remove(t.mesh);t.mesh.geometry.dispose();t.mesh.material.dispose();tracers.splice(i,1);}}}
 
+/* === РАКЕТЫ ДЛЯ ГРАНАТОМЁТА === */
+const rockets=[];
+function spawnRocket(startPos,dir,isMine){
+  const g=new THREE.Group();
+  const bodyMat=new THREE.MeshStandardMaterial({color:0x3a3a3a,roughness:0.5,metalness:0.7});
+  const headMat=new THREE.MeshStandardMaterial({color:0xff5020,roughness:0.4,metalness:0.6,emissive:0x441100});
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.055,0.30,8),bodyMat);
+  body.rotation.x=Math.PI/2;g.add(body);
+  const head=new THREE.Mesh(new THREE.ConeGeometry(0.065,0.12,8),headMat);
+  head.rotation.x=Math.PI/2;head.position.z=0.20;g.add(head);
+  for(let i=0;i<4;i++){
+    const a=i/4*Math.PI*2;
+    const fin=new THREE.Mesh(new THREE.BoxGeometry(0.018,0.09,0.08),bodyMat);
+    fin.position.set(Math.cos(a)*0.062,Math.sin(a)*0.062,-0.10);
+    fin.rotation.z=a;g.add(fin);
+  }
+  // Огненный факел позади
+  const trail=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.28,6),new THREE.MeshBasicMaterial({color:0xffaa22,transparent:true,opacity:0.85,blending:THREE.AdditiveBlending,depthWrite:false}));
+  trail.rotation.x=-Math.PI/2;trail.position.z=-0.28;g.add(trail);
+  
+  g.position.copy(startPos);g.position.y-=0.1;
+  const look=startPos.clone().add(dir);
+  g.lookAt(look);
+  scene.add(g);
+  
+  const vel=dir.clone().multiplyScalar(38);
+  vel.y+=1.5;
+  rockets.push({mesh:g,vel,life:6.0,isMine:!!isMine,trailMesh:trail});
+}
+
+function updateRockets(dt){
+  for(let i=rockets.length-1;i>=0;i--){
+    const r=rockets[i];
+    r.life-=dt;
+    if(r.life<=0){explodeRocket(r.mesh.position.clone(),r.isMine);scene.remove(r.mesh);disposeTree(r.mesh);rockets.splice(i,1);continue;}
+    
+    r.vel.y-=5*dt; // гравитация
+    const step=r.vel.clone().multiplyScalar(dt);
+    const len=step.length();
+    if(len<0.001){continue;}
+    const dirN=step.clone().normalize();
+    
+    // Проверка столкновений рейкастом
+    const rr=new THREE.Raycaster(r.mesh.position.clone(),dirN,0.05,len+0.3);
+    const wh=rr.intersectObjects(worldColliders,false);
+    const eh=rr.intersectObjects(enemyHitboxes,false);
+    const rh=rr.intersectObjects(remoteHitboxes,false);
+    
+    let hitPos=null;
+    let minDist=Infinity;
+    if(wh.length&&wh[0].distance<minDist){minDist=wh[0].distance;hitPos=wh[0].point.clone();}
+    if(eh.length&&eh[0].distance<minDist){minDist=eh[0].distance;hitPos=eh[0].point.clone();}
+    if(rh.length&&rh[0].distance<minDist){minDist=rh[0].distance;hitPos=rh[0].point.clone();}
+    
+    if(hitPos){
+      explodeRocket(hitPos,r.isMine);
+      scene.remove(r.mesh);disposeTree(r.mesh);rockets.splice(i,1);
+      continue;
+    }
+    
+    r.mesh.position.add(step);
+    // Ориентация по вектору движения
+    const lookTgt=r.mesh.position.clone().add(r.vel.clone().normalize());
+    r.mesh.lookAt(lookTgt);
+    
+    // Дым/искры позади
+    if(Math.random()<0.85){
+      spawnFlameParticle(r.mesh.position.clone().addScaledVector(dirN,-0.3),new THREE.Vector3((Math.random()-0.5)*0.5,-0.3+Math.random()*0.4,(Math.random()-0.5)*0.5),0.55,0.11,0.0);
+    }
+  }
+}
+
+function explodeRocket(pos,byMe){
+  playExplosion();
+  // Большой взрыв
+  const ex=new THREE.Mesh(new THREE.SphereGeometry(0.7,10,8),new THREE.MeshBasicMaterial({color:0xffaa22,transparent:true}));
+  ex.position.copy(pos);scene.add(ex);
+  const st=performance.now();
+  (function a(){const t=(performance.now()-st)/600;if(t>=1){scene.remove(ex);ex.geometry.dispose();ex.material.dispose();return;}ex.scale.setScalar(1+t*13);ex.material.opacity=1-t;requestAnimationFrame(a);})();
+  // Дым-кольцо
+  for(let i=0;i<16;i++){
+    const dir=new THREE.Vector3((Math.random()-0.5)*2,Math.random()*0.9,(Math.random()-0.5)*2).normalize();
+    spawnFlameParticle(pos.clone(),dir,0.9,0.20,0.06);
+  }
+  
+  const RADIUS=6.5;
+  const MAXDMG=220;
+  
+  // Урон ботам
+  for(const e of enemies){
+    if(!e.userData.alive)continue;
+    const dx=e.position.x-pos.x,dz=e.position.z-pos.z,dy=(e.position.y+1)-pos.y;
+    const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    if(d<RADIUS){
+      const dmg=MAXDMG*(1-d/RADIUS);
+      if(isHost()){
+        e.userData.hp-=dmg;
+        spawnDamageNumber(e.position,Math.round(dmg),false);
+        if(e.userData.hp<=0)killEnemy(e,byMe);
+      }
+    }
+  }
+  
+  // Урон удалённым игрокам (PvP)
+  for(const [uid,rp] of remotePlayers){
+    const dx=rp.mesh.position.x-pos.x,dz=rp.mesh.position.z-pos.z,dy=(rp.mesh.position.y+1)-pos.y;
+    const d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    if(d<RADIUS){
+      const dmg=MAXDMG*(1-d/RADIUS)*0.7;
+      sendPvPDamage(uid,dmg,pos);
+    }
+  }
+  
+  // Урон себе
+  const dx=camera.position.x-pos.x,dz=camera.position.z-pos.z,dy=camera.position.y-pos.y;
+  const dSelf=Math.sqrt(dx*dx+dy*dy+dz*dz);
+  if(dSelf<RADIUS){
+    const dmg=MAXDMG*(1-dSelf/RADIUS)*0.4;
+    if(dmg>4)damagePlayer(dmg,pos);
+  }
+}
+
+/* === ЧАСТИЦЫ ОГНЯ (огнемёт, ракеты, взрывы) === */
+const flameParticles=[];
+function spawnFlameParticle(pos,dir,life,size,growth){
+  life=life||0.6;size=size||0.15;growth=growth||0;
+  const color=Math.random()<0.5?0xff6600:(Math.random()<0.5?0xffaa22:0xff3300);
+  const mat=new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:0.92,blending:THREE.AdditiveBlending,depthWrite:false});
+  const geo=new THREE.SphereGeometry(size,6,5);
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.position.copy(pos);
+  scene.add(mesh);
+  const vel=dir.clone();
+  vel.x+=(Math.random()-0.5)*1.6;
+  vel.y+=(Math.random()-0.5)*0.5+0.5;
+  vel.z+=(Math.random()-0.5)*1.6;
+  vel.normalize().multiplyScalar(3.5+Math.random()*4.5);
+  flameParticles.push({mesh,vel,life,maxLife:life,growth,baseSize:size});
+  if(flameParticles.length>220){const o=flameParticles.shift();scene.remove(o.mesh);o.mesh.geometry.dispose();o.mesh.material.dispose();}
+}
+function updateFlameParticles(dt){
+  for(let i=flameParticles.length-1;i>=0;i--){
+    const p=flameParticles[i];
+    p.life-=dt;
+    if(p.life<=0){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();flameParticles.splice(i,1);continue;}
+    p.mesh.position.addScaledVector(p.vel,dt);
+    p.vel.y+=2.5*dt; // огонь поднимается
+    p.vel.multiplyScalar(1-1.6*dt); // сопротивление воздуха
+    p.mesh.material.opacity=Math.max(0,p.life/p.maxLife)*0.92;
+    if(p.growth>0){
+      const t=1-p.life/p.maxLife;
+      p.mesh.scale.setScalar(1+p.growth*t*12);
+    }
+  }
+}
+
 const GRENADE_TYPES=[{id:'frag',name:'Осколочная',color:0x3a4a2a},{id:'fire',name:'Молотов',color:0xff5500},{id:'smoke',name:'Дымовая',color:0x555555}];
 let currentGrenadeType=0;
 const grenades=[],smokeClouds=[],incendiaryZones=[];
@@ -1191,7 +1347,9 @@ function explodeGrenade(pos,byMe,type){
     const ex=new THREE.Mesh(new THREE.SphereGeometry(0.5,8,6),new THREE.MeshBasicMaterial({color:0xffaa22,transparent:true}));
     ex.position.copy(pos);scene.add(ex);
     const st=performance.now();(function a(){const t=(performance.now()-st)/400;if(t>=1){scene.remove(ex);ex.geometry.dispose();ex.material.dispose();return;}ex.scale.setScalar(1+t*9);ex.material.opacity=1-t;requestAnimationFrame(a);})();
+    for(let i=0;i<8;i++){const d=new THREE.Vector3((Math.random()-0.5)*2,Math.random(),(Math.random()-0.5)*2).normalize();spawnFlameParticle(pos.clone(),d,0.5,0.12,0.03);}
     for(const e of enemies){if(!e.userData.alive)continue;const dx=e.position.x-pos.x,dz=e.position.z-pos.z,dy=1.0-pos.y;const d=Math.sqrt(dx*dx+dy*dy+dz*dz);if(d<6){const dmg=120*(1-d/6);if(isHost()){e.userData.hp-=dmg;spawnDamageNumber(e.position,Math.round(dmg),false);if(e.userData.hp<=0)killEnemy(e,byMe);}}}
+    for(const [uid,rp] of remotePlayers){const dx=rp.mesh.position.x-pos.x,dz=rp.mesh.position.z-pos.z,dy=1.0-pos.y;const d=Math.sqrt(dx*dx+dy*dy+dz*dz);if(d<6)sendPvPDamage(uid,120*(1-d/6)*0.7,pos);}
     if(byMe){const dx=camera.position.x-pos.x,dz=camera.position.z-pos.z,dy=camera.position.y-pos.y;const d=Math.sqrt(dx*dx+dy*dy+dz*dz);if(d<6)damagePlayer(120*(1-d/6)*0.4);}
     return;
   }
@@ -1199,7 +1357,7 @@ function explodeGrenade(pos,byMe,type){
   if(type==='smoke'){spawnSmokeCloud(pos);return;}
 }
 function spawnFireZone(pos){const zone={pos:pos.clone(),life:5,radius:3.5,dmgTimer:0,mesh:null};const mesh=new THREE.Mesh(new THREE.CircleGeometry(3.5,16),new THREE.MeshBasicMaterial({color:0xff4400,transparent:true,opacity:0.5,depthWrite:false,blending:THREE.AdditiveBlending}));mesh.rotation.x=-Math.PI/2;mesh.position.set(pos.x,0.05,pos.z);scene.add(mesh);zone.mesh=mesh;incendiaryZones.push(zone);}
-function updateFires(dt){for(let i=incendiaryZones.length-1;i>=0;i--){const z=incendiaryZones[i];z.life-=dt;z.dmgTimer-=dt;const fade=Math.min(1,z.life/1.5);if(z.mesh)z.mesh.material.opacity=0.5*fade;if(z.dmgTimer<=0&&z.life>0){z.dmgTimer=0.4;for(const e of enemies){if(!e.userData.alive)continue;const d=Math.hypot(e.position.x-z.pos.x,e.position.z-z.pos.z);if(d<z.radius&&isHost()){e.userData.hp-=25;if(e.userData.hp<=0)killEnemy(e,true);}}const d=Math.hypot(camera.position.x-z.pos.x,camera.position.z-z.pos.z);if(d<z.radius)damagePlayer(8);}if(z.life<=0){if(z.mesh){scene.remove(z.mesh);z.mesh.geometry.dispose();z.mesh.material.dispose();}incendiaryZones.splice(i,1);}}}
+function updateFires(dt){for(let i=incendiaryZones.length-1;i>=0;i--){const z=incendiaryZones[i];z.life-=dt;z.dmgTimer-=dt;const fade=Math.min(1,z.life/1.5);if(z.mesh)z.mesh.material.opacity=0.5*fade;if(z.dmgTimer<=0&&z.life>0){z.dmgTimer=0.4;for(const e of enemies){if(!e.userData.alive)continue;const d=Math.hypot(e.position.x-z.pos.x,e.position.z-z.pos.z);if(d<z.radius&&isHost()){e.userData.hp-=25;if(e.userData.hp<=0)killEnemy(e,true);}}for(const [uid,rp] of remotePlayers){const d=Math.hypot(rp.mesh.position.x-z.pos.x,rp.mesh.position.z-z.pos.z);if(d<z.radius)sendPvPDamage(uid,25,z.pos);}const d=Math.hypot(camera.position.x-z.pos.x,camera.position.z-z.pos.z);if(d<z.radius)damagePlayer(8);}if(z.life<=0){if(z.mesh){scene.remove(z.mesh);z.mesh.geometry.dispose();z.mesh.material.dispose();}incendiaryZones.splice(i,1);}}}
 function spawnSmokeCloud(pos){const cloud={pos:pos.clone(),life:7,mesh:null};const group=new THREE.Group();group.position.set(pos.x,1.8,pos.z);for(let i=0;i<6;i++){const r=3.5+Math.random()*2.5;const mat=new THREE.MeshBasicMaterial({color:0x999999,transparent:true,opacity:0.6,depthWrite:false});const s=new THREE.Mesh(new THREE.SphereGeometry(r,6,5),mat);s.position.set((Math.random()-0.5)*6,(Math.random()-0.5)*2,(Math.random()-0.5)*6);group.add(s);}scene.add(group);cloud.mesh=group;smokeClouds.push(cloud);}
 function updateSmokes(dt){for(let i=smokeClouds.length-1;i>=0;i--){const s=smokeClouds[i];s.life-=dt;const fade=Math.min(1,s.life/2);if(s.mesh)s.mesh.children.forEach(c=>{c.material.opacity=0.6*fade;});if(s.life<=0){if(s.mesh){s.mesh.children.forEach(c=>{c.geometry.dispose();c.material.dispose();});scene.remove(s.mesh);}smokeClouds.splice(i,1);}}}
 function updateGrenadeHud(){const el=document.getElementById('grenadeCount');if(el)el.textContent=state.grenadesLeft;const te=document.getElementById('grenadeType');if(te)te.textContent=GRENADE_TYPES[currentGrenadeType].name;}
@@ -1612,6 +1770,7 @@ function spawnPlayerCorpse(){
   (function fall(){const t=Math.min((performance.now()-t0)/550,1);const e=t*t*(3-2*t);corpse.rotation.x=-Math.PI/2*e;corpse.position.y=0.15*e;if(t<1)requestAnimationFrame(fall);})();
   setTimeout(()=>{if(playerCorpse===corpse){scene.remove(corpse);disposeTree(corpse);playerCorpse=null;}},4500);
 }
+/* === ОБНОВЛЕНО: В team/gungame/duel игрок респавнится. Только зомби заканчивает игру. === */
 function damagePlayer(dmg,killerPos){
   if(state.dead)return;
   state.hp-=dmg;playHurt();
@@ -1620,10 +1779,18 @@ function damagePlayer(dmg,killerPos){
     state.hp=0;state.dead=true;stats.deaths++;
     deathFallActive=true;deathFallTimer=DEATH_FALL_DURATION;
     spawnPlayerCorpse();
-    if(gameMode==='gungame'&&!isDuelMode){respawnTimer=3.0;deathOverlayEl.classList.add('show');document.getElementById('respawnCount').textContent='3';return;}
-    if(isDuelMode){respawnTimer=3.5;deathOverlayEl.classList.add('show');document.getElementById('respawnCount').textContent='3';return;}
-    if(gameMode==='zombie'){matchOver=true;if(zombieWave>profile.maxWave){profile.maxWave=zombieWave;saveProfile();}setTimeout(()=>showGameOver(false),1800);return;}
-    matchOver=true;setTimeout(()=>showGameOver(false),1500);return;
+    /* Зомби — конец игры */
+    if(gameMode==='zombie'&&!isDuelMode){
+      matchOver=true;
+      if(zombieWave>profile.maxWave){profile.maxWave=zombieWave;saveProfile();}
+      setTimeout(()=>showGameOver(false),1800);
+      return;
+    }
+    /* Дуэль, командный бой и gun game — респавн */
+    respawnTimer=(isDuelMode?3.5:3.0);
+    deathOverlayEl.classList.add('show');
+    document.getElementById('respawnCount').textContent='3';
+    return;
   }
 }
 function respawnPlayer(){
@@ -1739,7 +1906,62 @@ function tryShoot(){
   state.nextFire=now+w.rate;
   if(state.ammo!==Infinity){state.ammo--;updateAmmoHUD();}
   stats.shots++;
-  if(w.flame){if(muzzleFlash)muzzleFlash.material.opacity=1;muzzleTimer=0.05;const range=w.range;for(const e of enemies){if(!e.userData.alive)continue;const dx=e.position.x-camera.position.x,dz=e.position.z-camera.position.z;const d=Math.hypot(dx,dz);if(d>range||d<0.5)continue;const toE=new THREE.Vector3(dx,0,dz).normalize();const camDir=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);const fwdF=new THREE.Vector3(camDir.x,0,camDir.z).normalize();if(fwdF.dot(toE)<0.75)continue;if(isHost()){e.userData.hp-=w.dmg;if(e.userData.hp<=0)killEnemy(e,true);}}if(state.ammo===0)startReload();return;}
+  
+  /* === ГРАНАТОМЁТ — вылетает ракета === */
+  if(w.rocket){
+    playRocketLaunch();
+    if(muzzleFlash){muzzleFlash.material.opacity=1;muzzleTimer=0.08;}
+    vmState.recoilTarget+=0.12;
+    const dir=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+    const start=camera.position.clone();
+    start.y-=0.08;
+    start.addScaledVector(dir,0.6);
+    spawnRocket(start,dir,true);
+    state.pitch+=w.recoil;
+    if(state.ammo===0)startReload();
+    return;
+  }
+  
+  /* === ОГНЕМЁТ — огонь и урон конусом === */
+  if(w.flame){
+    if(muzzleFlash)muzzleFlash.material.opacity=1;
+    muzzleTimer=0.05;
+    const range=w.range;
+    const camDir=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+    const camDirFlat=new THREE.Vector3(camDir.x,0,camDir.z).normalize();
+    /* Спавним частицы огня вдоль направления */
+    const spawnPos=camera.position.clone().addScaledVector(camDir,0.7);
+    for(let i=0;i<3;i++){
+      const p=camDir.clone();
+      p.x+=(Math.random()-0.5)*0.35;p.y+=(Math.random()-0.5)*0.15;p.z+=(Math.random()-0.5)*0.35;
+      p.normalize().multiplyScalar(7+Math.random()*5);
+      spawnFlameParticle(spawnPos.clone(),p,0.7,0.18+Math.random()*0.10,0.03);
+    }
+    /* Урон всем в конусе */
+    for(const e of enemies){
+      if(!e.userData.alive)continue;
+      const dx=e.position.x-camera.position.x,dz=e.position.z-camera.position.z;
+      const d=Math.hypot(dx,dz);
+      if(d>range||d<0.3)continue;
+      const toE=new THREE.Vector3(dx,0,dz).normalize();
+      if(camDirFlat.dot(toE)<0.72)continue;
+      if(isHost()){e.userData.hp-=w.dmg;spawnDamageNumber(e.position,Math.round(w.dmg),false);if(e.userData.hp<=0)killEnemy(e,true);}
+    }
+    /* PvP — огонь по удалённым игрокам */
+    for(const [uid,rp] of remotePlayers){
+      const dx=rp.mesh.position.x-camera.position.x,dz=rp.mesh.position.z-camera.position.z;
+      const d=Math.hypot(dx,dz);
+      if(d>range||d<0.3)continue;
+      const toE=new THREE.Vector3(dx,0,dz).normalize();
+      if(camDirFlat.dot(toE)<0.72)continue;
+      sendPvPDamage(uid,w.dmg,spawnPos);
+    }
+    /* Урон себе, если стоишь в собственном огне */
+    if(state.ammo===0)startReload();
+    return;
+  }
+  
+  /* === ОБЫЧНЫЙ ВЫСТРЕЛ === */
   playShot(state.current);
   if(muzzleFlash){muzzleFlash.material.opacity=1;muzzleTimer=0.05;}
   vmState.recoilTarget+=0.045;
@@ -1751,14 +1973,25 @@ function tryShoot(){
     dir.normalize();
     ray.set(camera.position,dir);ray.near=0;ray.far=w.range;
     const eHits=ray.intersectObjects(enemyHitboxes,false);
+    const rHits=ray.intersectObjects(remoteHitboxes,false);
     const wHits=ray.intersectObjects(worldColliders,false);
-    const eHit=eHits[0],wHit=wHits[0];
-    let hitPoint,hitEnemy=null,isHead=false,limbMul=1;
-    const eDist=eHit?eHit.distance:Infinity;const wDist=wHit?wHit.distance:Infinity;
-    if(eHit&&eDist<wDist){hitPoint=eHit.point.clone();hitEnemy=eHit.object.userData.root;isHead=!!eHit.object.userData.isHead;limbMul=eHit.object.userData.dmgMul||1;}
+    const eHit=eHits[0],rHit=rHits[0],wHit=wHits[0];
+    const eDist=eHit?eHit.distance:Infinity;
+    const rDist=rHit?rHit.distance:Infinity;
+    const wDist=wHit?wHit.distance:Infinity;
+    let hitPoint,hitEnemy=null,hitRemote=null,isHead=false,limbMul=1;
+    const minEnemy=Math.min(eDist,rDist);
+    if(minEnemy<wDist){
+      if(eDist<=rDist){
+        hitPoint=eHit.point.clone();hitEnemy=eHit.object.userData.root;isHead=!!eHit.object.userData.isHead;limbMul=eHit.object.userData.dmgMul||1;
+      } else {
+        hitPoint=rHit.point.clone();hitRemote=rHit.object.userData.remoteUid;isHead=!!rHit.object.userData.isHead;limbMul=rHit.object.userData.dmgMul||1;
+      }
+    }
     else if(wHit){hitPoint=wHit.point.clone();const n=wHit.face?wHit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(wHit.object.matrixWorld)).normalize():new THREE.Vector3(0,1,0);spawnBulletHole(hitPoint,n);}
     else{hitPoint=camera.position.clone().add(dir.clone().multiplyScalar(w.range));}
     spawnTracer(muzzleWorld.clone(),hitPoint,w.tracer,w.tracerW,false);
+    /* Попадание по боту */
     if(hitEnemy&&hitEnemy.userData.alive){
       stats.hits++;playHit();showHitmarker();
       let dmg=w.dmg*limbMul;
@@ -1766,6 +1999,14 @@ function tryShoot(){
       spawnDamageNumber(hitEnemy.position,Math.round(dmg),isHead);
       spawnBloodDecal(hitEnemy.position);
       if(isHost()){hitEnemy.userData.hp-=dmg;if(hitEnemy.userData.hp<=0)killEnemy(hitEnemy,true);}
+    }
+    /* Попадание по удалённому игроку (PvP) */
+    if(hitRemote){
+      stats.hits++;playHit();showHitmarker();
+      let dmg=w.dmg*limbMul;
+      if(isHead){dmg*=1.4;stats.headshots++;}
+      spawnDamageNumber(hitPoint.clone().add(new THREE.Vector3(0,-0.5,0)),Math.round(dmg),isHead);
+      sendPvPDamage(hitRemote,dmg,hitPoint);
     }
   }
   state.pitch+=w.recoil;
@@ -1785,6 +2026,15 @@ function knifeStrike(){
     any=true;showHitmarker();stats.hits++;
     spawnDamageNumber(e.position,Math.round(w.dmg),false);
     if(isHost()){e.userData.hp=0;killEnemy(e,true,true);}
+  }
+  /* PvP — нож по удалённым игрокам */
+  for(const [uid,rp] of remotePlayers){
+    const toE=new THREE.Vector3(rp.mesh.position.x-camera.position.x,0,rp.mesh.position.z-camera.position.z);
+    if(toE.length()>w.range)continue;
+    toE.normalize();
+    if(fwdF.dot(toE)<0.55)continue;
+    any=true;showHitmarker();stats.hits++;
+    sendPvPDamage(uid,w.dmg,rp.mesh.position);
   }
   if(any)playKnifeHit();
 }
@@ -1836,14 +2086,12 @@ function closeInGameShop(){
   document.getElementById('inGameShop').classList.remove('show');
   if(state.started&&!state.dead&&!matchOver){paused=false;if(!isMobile)setTimeout(tryRequestLock,1100);}
 }
-
 function buildInGameShop(){
   const grid=document.getElementById('inGameShopGrid');if(!grid)return;grid.innerHTML='';
   const titleEl=document.getElementById('ighTitle');
   const zombie=(gameMode==='zombie');
   const team=(gameMode==='team');
   if(titleEl)titleEl.textContent=zombie?'🧟 МАГАЗИН — ЗОМБИ':(team?'🛒 МАГАЗИН — ВСЁ БЕСПЛАТНО':'🛒 МАГАЗИН');
-
   if(zombie){
     const w=WEAPONS[state.current];
     if(w&&w.magSize!==Infinity){
@@ -1857,7 +2105,6 @@ function buildInGameShop(){
     mitem.innerHTML=`<div class="shopHeader"><div class="shopIcon">🩹</div><div class="shopMeta"><div class="shopName">Аптечка</div><div class="shopSub">+50 HP</div></div></div><div class="shopAction"><button class="sBuy" data-t="medkit" data-p="${mcost}"><span class="price">💰 ${mcost}</span></button></div>`;
     grid.appendChild(mitem);
   }
-
   WEAPONS.filter(w=>!w.noShop).forEach(w=>{
     const item=document.createElement('div');item.className='shopItem';
     if(team){
@@ -1871,7 +2118,6 @@ function buildInGameShop(){
     }
     grid.appendChild(item);
   });
-
   grid.querySelectorAll('.sBuy').forEach(b=>b.addEventListener('click',()=>{
     const t=b.dataset.t;
     if(t==='ammo'){
@@ -1957,34 +2203,9 @@ applyButtonPositions();
 function canAct(){return !paused&&!editingButtons&&state.started&&!state.dead&&!matchOver&&state.countdown<=0;}
 
 let dragBtnKey=null,dragStartX=0,dragStartY=0,dragStartLeftPct=0,dragStartBotPct=0,dragTouchId=null;
-function startDragButton(key,touch){
-  if(!editingButtons)return false;
-  const el=getEl(key);if(!el)return false;
-  dragBtnKey=key;
-  dragStartX=touch.clientX;dragStartY=touch.clientY;
-  dragStartLeftPct=getPos(key).left;
-  dragStartBotPct=getPos(key).bottom;
-  dragTouchId=touch.identifier;
-  selectElement(key);
-  return true;
-}
-function moveDragButton(touch){
-  if(!dragBtnKey||touch.identifier!==dragTouchId)return;
-  const dx=touch.clientX-dragStartX;
-  const dy=touch.clientY-dragStartY;
-  const W=innerWidth,H=innerHeight;
-  const newLeft=Math.max(2,Math.min(98,dragStartLeftPct+dx/W*100));
-  const newBottom=Math.max(2,Math.min(98,dragStartBotPct-dy/H*100));
-  if(!btnPositions[dragBtnKey])btnPositions[dragBtnKey]={left:newLeft,bottom:newBottom};
-  else{btnPositions[dragBtnKey].left=newLeft;btnPositions[dragBtnKey].bottom=newBottom;}
-  applyButtonPositions();
-}
-function endDragButton(touch){
-  if(!dragBtnKey)return;
-  if(touch&&touch.identifier!==dragTouchId)return;
-  saveBtnPositions();
-  dragBtnKey=null;dragTouchId=null;
-}
+function startDragButton(key,touch){if(!editingButtons)return false;const el=getEl(key);if(!el)return false;dragBtnKey=key;dragStartX=touch.clientX;dragStartY=touch.clientY;dragStartLeftPct=getPos(key).left;dragStartBotPct=getPos(key).bottom;dragTouchId=touch.identifier;selectElement(key);return true;}
+function moveDragButton(touch){if(!dragBtnKey||touch.identifier!==dragTouchId)return;const dx=touch.clientX-dragStartX;const dy=touch.clientY-dragStartY;const W=innerWidth,H=innerHeight;const newLeft=Math.max(2,Math.min(98,dragStartLeftPct+dx/W*100));const newBottom=Math.max(2,Math.min(98,dragStartBotPct-dy/H*100));if(!btnPositions[dragBtnKey])btnPositions[dragBtnKey]={left:newLeft,bottom:newBottom};else{btnPositions[dragBtnKey].left=newLeft;btnPositions[dragBtnKey].bottom=newBottom;}applyButtonPositions();}
+function endDragButton(touch){if(!dragBtnKey)return;if(touch&&touch.identifier!==dragTouchId)return;saveBtnPositions();dragBtnKey=null;dragTouchId=null;}
 function attachButtonDrag(key){
   const el=getEl(key);if(!el)return;
   el.addEventListener('touchstart',e=>{if(!editingButtons)return;e.preventDefault();e.stopPropagation();const t=e.changedTouches[0];startDragButton(key,t);},{passive:false});
@@ -2016,7 +2237,6 @@ document.getElementById('btnSlot2').addEventListener('touchstart',e=>{if(editing
 document.getElementById('btnSlot3').addEventListener('touchstart',e=>{if(editingButtons)return;e.preventDefault();if(!canAct())return;switchToSlot(3);},{passive:false});
 document.getElementById('btnShopMob').addEventListener('touchstart',e=>{if(editingButtons)return;e.preventDefault();if(!canAct())return;if(gameMode!=='zombie'&&gameMode!=='team')return;openInGameShop();},{passive:false});
 
-/* btnMic отсутствует в DOM — обработчик с защитой от null. Логика микрофона доступна через клавишу V. */
 const _micBtnEl=document.getElementById('btnMic');
 if(_micBtnEl)_micBtnEl.addEventListener('click',e=>{if(editingButtons)return;e.preventDefault();e.stopPropagation();if(localStream)stopVoiceChat();else startVoiceChat();});
 
@@ -2127,6 +2347,18 @@ function drawMinimap(){
     mmCtx.fillStyle=e.userData.isZombie?'#6aff6a':'#ff4040';
     mmCtx.beginPath();mmCtx.arc(ex,ez,3,0,Math.PI*2);mmCtx.fill();
   }
+  /* Удалённые игроки на радаре */
+  for(const [uid,rp] of remotePlayers){
+    const dx=rp.mesh.position.x-camera.position.x,dz=rp.mesh.position.z-camera.position.z;
+    const d2=dx*dx+dz*dz;
+    if(d2>MM_RANGE*MM_RANGE||d2<1.0)continue;
+    const d=Math.sqrt(d2);const nx=dx/d,nz=dz/d;
+    const pfX=-Math.sin(state.yaw),pfZ=-Math.cos(state.yaw);
+    if(pfX*nx+pfZ*nz<MM_FOV_HALF)continue;
+    const ex=(rp.mesh.position.x+MAP_HALF)*MS,ez=(rp.mesh.position.z+MAP_HALF)*MS;
+    mmCtx.fillStyle='#ffdd44';
+    mmCtx.beginPath();mmCtx.arc(ex,ez,4,0,Math.PI*2);mmCtx.fill();
+  }
   const px=(camera.position.x+MAP_HALF)*MS,pz=(camera.position.z+MAP_HALF)*MS;
   mmCtx.fillStyle='#00ff66';mmCtx.beginPath();mmCtx.arc(px,pz,4,0,Math.PI*2);mmCtx.fill();
 }
@@ -2146,21 +2378,36 @@ document.getElementById('mpJoinRoom').addEventListener('click',()=>joinRoom(docu
 document.getElementById('mpLeaveRoom').addEventListener('click',leaveRoom);
 document.getElementById('mpRefreshRooms').addEventListener('click',()=>{mpSend({t:'roomQuery',uid:MY_UID});});
 
-/* Голосовой чат — код оставлен, но UI (кнопка и индикатор) скрыты */
+/* === ГОЛОСОВОЙ ЧАТ — код сохранён, UI скрыт === */
 async function startVoiceChat(){if(localStream)return;try{localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});var vi=document.getElementById('voiceIndicator');if(vi)vi.classList.add('on');}catch(e){showBanner('❌ Нет доступа к микрофону',2000);}}
 function stopVoiceChat(){if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}var vi=document.getElementById('voiceIndicator');if(vi)vi.classList.remove('on');}
 
+/* === PvP ДAMAGE === */
+function sendPvPDamage(targetUid,dmg,hitPos){
+  if(!mpConnected||!ws||ws.readyState!==1)return;
+  mpSend({t:'pvpDamage',uid:MY_UID,target:targetUid,dmg:dmg,fromNick:mpNick,killerPos:hitPos?{x:hitPos.x,y:hitPos.y,z:hitPos.z}:null});
+}
+
 document.getElementById('mpConnectBtn').addEventListener('click',()=>{const url=getAutoSocketUrl();mpNick=(profile.nick||'Player').slice(0,16);const st=document.getElementById('mpStatus');try{if(ws){try{ws.close();}catch(e){}}ws=new WebSocket(url);st.textContent='Подключение...';ws.onopen=()=>{mpConnected=true;peerUids.clear();peerUids.add(MY_UID);mpSend({t:'hello',uid:MY_UID,nick:mpNick});mpSend({t:'roomQuery',uid:MY_UID});renderRoomBanner();};ws.onmessage=(ev)=>{try{handleMPMessage(JSON.parse(ev.data));}catch(e){}};ws.onerror=()=>{st.textContent='❌ Ошибка';};ws.onclose=()=>{st.textContent='Отключён';ws=null;mpConnected=false;clearRemotePlayers();};}catch(e){st.textContent='❌ '+e.message;}});
 document.getElementById('mpDisconnectBtn').addEventListener('click',()=>{if(ws){try{ws.close();}catch(e){}ws=null;mpConnected=false;}document.getElementById('mpStatus').textContent='Отключён';clearRemotePlayers();});
-function clearRemotePlayers(){for(const rp of remotePlayers.values())scene.remove(rp.mesh);remotePlayers.clear();}
+function clearRemotePlayers(){
+  for(const rp of remotePlayers.values())scene.remove(rp.mesh);
+  remotePlayers.clear();
+  remoteHitboxes.length=0; /* Очистка PvP-хитбоксов */
+}
 function handleMPMessage(m){
   if(!m||!m.t)return;if(m.uid===MY_UID)return;
   if(m.t==='hello'){peerUids.add(m.uid);if(!remotePlayers.has(m.uid))createRemotePlayer(m.uid);mpSend({t:'hello',uid:MY_UID,nick:mpNick});}
-  else if(m.t==='state'){if(!peerUids.has(m.uid))peerUids.add(m.uid);let rp=remotePlayers.get(m.uid);if(!rp)rp=createRemotePlayer(m.uid);const feetY=Math.max(0,(m.y||0)-PLAYER_HEIGHT_STAND);rp.mesh.position.set(m.x,feetY,m.z);rp.mesh.rotation.y=(m.ry||0)+Math.PI;}
+  else if(m.t==='state'){if(!peerUids.has(m.uid))peerUids.add(m.uid);let rp=remotePlayers.get(m.uid);if(!rp)rp=createRemotePlayer(m.uid);const feetY=Math.max(0,(m.y||0)-PLAYER_HEIGHT_STAND);rp.mesh.position.set(m.x,feetY,m.z);rp.mesh.rotation.y=(m.ry||0)+Math.PI;/* Обновляем хитбоксы */if(rp.hitboxes)rp.hitboxes.forEach(hb=>{hb.updateWorldMatrix(true,false);});}
   else if(m.t==='shot'){const from=new THREE.Vector3(m.x,(m.y||0)-0.15,m.z);const dir=new THREE.Vector3(-Math.sin(m.ry||0),0,-Math.cos(m.ry||0));const to=from.clone().addScaledVector(dir,25);spawnTracer(from,to,0xffaa44,0.014,true);}
   else if(m.t==='roomCreate'){activeRooms.set(m.id,{id:m.id,name:m.name,map:m.map,mode:m.mode,host:m.host,ts:Date.now()});renderRoomList();}
   else if(m.t==='roomJoin'){if(currentRoom&&m.id===currentRoom.id){peerUids.add(m.uid);if(!remotePlayers.has(m.uid))createRemotePlayer(m.uid);if(isDuelMode&&currentRoom.host===MY_UID&&!duelOpponentUid){duelOpponentUid=m.uid;showBanner('⚔️ ДУЭЛЬ НАЧАЛАСЬ!',2500);duelStatusEl.classList.add('show');}}}
-  else if(m.t==='pvpDamage'&&m.target===MY_UID){const kp=m.killerPos?new THREE.Vector3(m.killerPos.x,m.killerPos.y,m.killerPos.z):null;damagePlayer(m.dmg,kp);addKillFeed('💥 '+m.fromNick+' → ВЫ');}
+  else if(m.t==='pvpDamage'&&m.target===MY_UID){
+    /* Получили урон от другого игрока */
+    const kp=m.killerPos?new THREE.Vector3(m.killerPos.x,m.killerPos.y,m.killerPos.z):null;
+    damagePlayer(m.dmg,kp);
+    addKillFeed('💥 '+m.fromNick+' → ВЫ (-'+Math.round(m.dmg)+')');
+  }
 }
 function createRemotePlayer(uid){
   const g=new THREE.Group();
@@ -2168,8 +2415,25 @@ function createRemotePlayer(uid){
   const pal=PALETTES[h%PALETTES.length];
   const char=buildCharacter(pal);g.add(char);
   scene.add(g);
-  const rp={uid,mesh:g,parts:char.userData.parts,gunGroup:char.userData.parts.gun,currentWeaponIdx:-1,gunMesh:null};
+  const rp={uid,mesh:g,parts:char.userData.parts,gunGroup:char.userData.parts.gun,currentWeaponIdx:-1,gunMesh:null,hitboxes:[]};
   const w=WEAPONS[0];const g2=buildWeaponModel(w.model,0);g2.scale.setScalar(Math.max(0.6,w.size[2]/0.85));rp.gunGroup.add(g2);rp.gunMesh=g2;rp.currentWeaponIdx=0;
+  /* === PvP-хитбоксы === */
+  const zones=[
+    {name:'head',y:1.72,x:0,w:0.32,h:0.32,d:0.32,mul:2.5,isHead:true},
+    {name:'torso',y:1.15,x:0,w:0.62,h:0.72,d:0.42,mul:1.0},
+    {name:'legL',y:0.45,x:-0.15,w:0.22,h:0.85,d:0.28,mul:0.65},
+    {name:'legR',y:0.45,x:0.15,w:0.22,h:0.85,d:0.28,mul:0.65}
+  ];
+  for(const z of zones){
+    const hbm=new THREE.Mesh(new THREE.BoxGeometry(z.w,z.h,z.d),new THREE.MeshBasicMaterial({visible:false}));
+    hbm.position.set(z.x||0,z.y,0);
+    hbm.userData.remoteUid=uid;
+    hbm.userData.isHead=!!z.isHead;
+    hbm.userData.dmgMul=z.mul;
+    g.add(hbm);
+    rp.hitboxes.push(hbm);
+    remoteHitboxes.push(hbm);
+  }
   remotePlayers.set(uid,rp);
   return rp;
 }
@@ -2252,6 +2516,8 @@ function animate(now){
   if(!paused){
     updateReload();updateGrenades(dt);updateTeamSpawn(dt);updateGunGame(dt);updateZombieMode(dt);
     updateFires(dt);updateRadio(dt);updateBloodDecals(dt);updateDamageNumbers(dt);updateSmokes(dt);
+    updateRockets(dt);         /* Ракеты */
+    updateFlameParticles(dt);  /* Огонь */
     if(state.dead&&respawnTimer>0){respawnTimer-=dt;const s=Math.max(0,Math.ceil(respawnTimer));if(respawnCountEl.textContent!==String(s))respawnCountEl.textContent=s;if(respawnTimer<=0)respawnPlayer();}
   }
   if(state.dead&&deathFallActive){deathFallTimer-=dt;const t=1-Math.max(0,deathFallTimer)/DEATH_FALL_DURATION;camera.position.y=Math.max(0.4,PLAYER_HEIGHT_STAND-t*1.2);camera.rotation.z=t*Math.PI*0.4;if(deathFallTimer<=0)deathFallActive=false;}
@@ -2368,6 +2634,9 @@ function resetGame(){
   for(const g of grenades)scene.remove(g.mesh);grenades.length=0;
   for(const s of smokeClouds){if(s.mesh){s.mesh.children.forEach(c=>{c.geometry.dispose();c.material.dispose();});scene.remove(s.mesh);}}smokeClouds.length=0;
   for(const z of incendiaryZones){if(z.mesh){scene.remove(z.mesh);z.mesh.geometry.dispose();z.mesh.material.dispose();}}incendiaryZones.length=0;
+  /* Очистка ракет и огня */
+  for(const r of rockets){scene.remove(r.mesh);disposeTree(r.mesh);}rockets.length=0;
+  for(const p of flameParticles){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();}flameParticles.length=0;
   document.getElementById('flashOverlay').style.opacity='0';
   document.getElementById('k').textContent='0';
   updateHpCircle();
@@ -2462,7 +2731,7 @@ try{
   updateDuelPlayButton();
 }catch(initErr){console.error('INIT FAIL:',initErr);if(window.showFatal)window.showFatal('[INIT] '+(initErr.stack||initErr.message));}
 
-console.log('🎮 Gun Game Arena v22.0 загружена!');
+console.log('🎮 Gun Game Arena v23.0 загружена!');
 requestAnimationFrame(animate);
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);applyRenderScale();});
