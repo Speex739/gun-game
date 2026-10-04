@@ -671,13 +671,9 @@ window.yandexInit = async function() {
     }
 
     window.YSDK.ready = true;
-
-    try {
-      window.YSDK.sdk.features.LoadingAPI.ready();
-      console.log('[YSDK] LoadingAPI.ready() — отправлен');
-    } catch (e) {
-      console.warn('[YSDK] LoadingAPI.ready failed', e);
-    }
+    // ❗ LoadingAPI.ready() здесь НЕ вызываем.
+    // Он будет отправлен после полной загрузки игры
+    // (см. __ysdkSendReady ниже и bootGame() в модуле).
 
     try {
       window.YSDK.sdk.on('game_api_pause', function() {
@@ -975,6 +971,46 @@ window.yandexGetPlayerAvatar = function() {
     attach();
   }
 })();
+
+/* ============================================================
+   АВТОЗАПУСК SDK — вынесен из ES-модуля.
+   Гарантирует инициализацию SDK и LoadingAPI.ready() даже если
+   Three.js не загрузится с unpkg (CSP, offline, блок CDN).
+   ============================================================ */
+window.__ysdkReadySent = false;
+
+window.__ysdkSendReady = function (reason) {
+  if (window.__ysdkReadySent) return;
+  if (!window.YSDK || !window.YSDK.sdk) return;
+  try {
+    window.YSDK.sdk.features.LoadingAPI.ready();
+    window.__ysdkReadySent = true;
+    console.log('[YSDK] LoadingAPI.ready() — отправлен (' + (reason || 'manual') + ')');
+  } catch (e) {
+    console.warn('[YSDK] LoadingAPI.ready failed', e);
+  }
+};
+
+// Стартуем YaGames.init() сразу, не дожидаясь ES-модуля с Three.js
+window.__ysdkBootPromise = (function () {
+  if (typeof YaGames === 'undefined') {
+    console.warn('[YSDK] YaGames не найден — оффлайн-режим');
+    return Promise.resolve(false);
+  }
+  return window.yandexInit().catch(function (e) {
+    console.warn('[YSDK] init failed', e);
+    return false;
+  });
+})();
+
+// Страховочный таймер: если игра не сообщила о готовности за 8 сек,
+// отправляем ready() принудительно, иначе гарантированный реджект по п. 1.1.
+setTimeout(function () {
+  if (!window.__ysdkReadySent) {
+    console.warn('[YSDK] fallback: игра не сообщила о готовности за 8 сек');
+    window.__ysdkSendReady('fallback-timeout');
+  }
+}, 8000);
 </script>
 
 <script type="importmap">
@@ -3253,11 +3289,15 @@ addEventListener('wheel',e=>{if(!state.started||state.dead||matchOver||paused||e
 window.addEventListener('gg:login',function(e){try{profile=loadProfile();if(e&&e.detail&&e.detail.nick){profile.nick=e.detail.nick;saveProfile();}updateProfileHud();loadSettingsToUI();buildAchievements();buildCases();buildRating();buildSkinWeaponGrid();buildSkinGrid();updateMoneyHud();}catch(err){console.warn('gg:login error',err);}});
 
 /* =========================================================================
-   BOOT SEQUENCE — сначала SDK, потом облако, потом игра
+   BOOT SEQUENCE — ждём уже стартовавший SDK, потом облако, потом игра
    ========================================================================= */
 (async function bootGame() {
   try {
-    await window.yandexInit();
+    if (window.__ysdkBootPromise) {
+      await window.__ysdkBootPromise;
+    } else {
+      await window.yandexInit();
+    }
   } catch (e) {
     console.warn('[BOOT] SDK init skipped', e);
   }
@@ -3295,6 +3335,19 @@ window.addEventListener('gg:login',function(e){try{profile=loadProfile();if(e&&e
     console.error('INIT FAIL:', initErr);
     if (window.showFatal) window.showFatal('[INIT] ' + (initErr.stack || initErr.message));
   }
+
+  // Сообщаем Яндексу, что игра готова к взаимодействию.
+  // Вызываем ПОСЛЕ отрисовки лобби, а не сразу после init().
+  try {
+    if (window.__ysdkSendReady) {
+      window.__ysdkSendReady('boot-complete');
+    } else if (window.YSDK && window.YSDK.sdk) {
+      window.YSDK.sdk.features.LoadingAPI.ready();
+    }
+  } catch (e) {
+    console.warn('[YSDK] ready() failed', e);
+  }
+
   console.log('🎮 Gun Game Arena v23.0 загружена!');
   requestAnimationFrame(animate);
 })();
